@@ -1,0 +1,112 @@
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 18px 32px;
+  border-bottom: 1px solid var(--border-subtle);
+  background: rgba(5, 5, 7, 0.7);
+  backdrop-filter: blur(8px);
+  position: sticky;
+  top: 0;
+  z-index: 5;
+}
+
+.topbar__title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.topbar__actions {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.topbar__search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-panel);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-muted);
+  width: 220px;
+  transition: border-color 0.15s ease;
+}
+
+.topbar__search:focus-within {
+  border-color: var(--accent);
+}
+
+.topbar__search input {
+  border: none;
+  background: none;
+  outline: none;
+  width: 100%;
+  font-size: 0.86rem;
+  color: var(--text-primary);
+}
+
+.topbar__search input::placeholder {
+  color: var(--text-muted);
+}
+
+.topbar__icon-btn {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-panel);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-secondary);
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+
+.topbar__icon-btn:hover {
+  color: var(--text-primary);
+  border-color: var(--border-strong);
+}
+
+.topbar__icon-dot {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #ff5f57;
+  box-shadow: 0 0 0 2px var(--bg-panel);
+}
+
+.topbar__cta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border-radius: var(--radius-sm);
+  font-size: 0.86rem;
+  font-weight: 600;
+  color: #fff;
+  background: linear-gradient(180deg, var(--accent-bright), var(--accent));
+  box-shadow: 0 8px 20px -8px rgba(109, 94, 240, 0.55);
+  white-space: nowrap;
+  transition: filter 0.15s ease;
+}
+
+.topbar__cta:hover {
+  filter: brightness(1.06);
+}
+
+@media (max-width: 720px) {
+  .topbar__search {
+    display: none;
+  }
+  .topbar {
+    padding: 16px 20px;
+  }
+}
