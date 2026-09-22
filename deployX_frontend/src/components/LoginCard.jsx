@@ -10,7 +10,7 @@ export default function LoginCard() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState('')
 
-  function handleSubmit(event) {
+  async function handleSubmit(event) {
     event.preventDefault()
     setError('')
 
@@ -21,14 +21,40 @@ export default function LoginCard() {
 
     setIsSubmitting(true)
     // Replace with a real authentication call.
-    setTimeout(() => {
-      setIsSubmitting(false)
-      if (!getStoredName()) {
-        setStoredName(nameFromEmail(email))
-      }
+    try {
+    const response = await fetch(
+        'http://localhost:8082/api/v1.0/login',
+        {
+            method : 'POST',
+            headers : {
+                'Content-type' : 'application/json'
+                },
+            credentials : 'include',
+            body : JSON.stringify({
+                email : email,
+                password : password,
+                }),
+            }
+        )
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            setError(data.message || 'Unable to create account.')
+            return
+          }
+      console.log('Login successful:', data)
+      setStoredName(nameFromEmail(data.email))
       navigate('/dashboard')
-    }, 900)
-  }
+
+        } catch (error) {
+          console.error(error)
+          setError('Unable to connect to the server.')
+        } finally {
+          setIsSubmitting(false)
+        }
+    }
+
 
   function handleGithubSignIn() {
     // Replace with your real GitHub OAuth redirect.

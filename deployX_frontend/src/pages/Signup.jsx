@@ -16,32 +16,55 @@ export default function Signup() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState('')
 
-  function handleSubmit(event) {
+  async function handleSubmit(event) {
     event.preventDefault()
     setError('')
-
     if (!name || !email || !password || !confirmPassword) {
       setError('Fill in every field to create your account.')
       return
     }
-
     if (password.length < 8) {
       setError('Password must be at least 8 characters.')
       return
     }
-
     if (password !== confirmPassword) {
       setError('Passwords do not match.')
       return
     }
-
     setIsSubmitting(true)
-    // Replace with a real account-creation API call.
-    setTimeout(() => {
+
+    try {
+      const response = await fetch(
+        'http://localhost:8082/api/v1.0/register',
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            name: name,
+            email: email,
+            password: password,
+          }),
+        }
+      )
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        setError(data.message || 'Unable to create account.')
+        return
+      }
+
+      setStoredName(data.name)
+
+      navigate('/')
+    } catch (error) {
+      setError('Unable to connect to the server.')
+      console.error(error)
+    } finally {
       setIsSubmitting(false)
-      setStoredName(name)
-      navigate('/register')
-    }, 900)
+    }
   }
 
   function handleGithubSignUp() {
