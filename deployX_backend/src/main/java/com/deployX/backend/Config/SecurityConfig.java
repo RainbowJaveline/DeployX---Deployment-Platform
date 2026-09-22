@@ -1,6 +1,8 @@
 package com.deployX.backend.Config;
 
 import com.deployX.backend.Service.AppUserDetailsService;
+import com.deployX.backend.Service.CustomOAuth2UserService;
+import com.deployX.backend.Service.OAuth2AuthenticationSuccessHandler;
 import com.deployX.backend.filter.JwtFilter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
@@ -30,14 +32,22 @@ public class SecurityConfig {
     private final AppUserDetailsService userDetailsService;
     private final JwtFilter jwtFilter;
     private final CustomAuthenticationEntryPoint customAuthenticationEntryPoint;
+    private final CustomOAuth2UserService customOAuth2UserService;
+    private final OAuth2AuthenticationSuccessHandler oAuth2AuthenticationSuccessHandler;
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception{
         return http.csrf(csrf->csrf.disable())
                 .authorizeHttpRequests(request -> request
-                        .requestMatchers("/login","/register","/logout","/send-reset-otp","/reset-password").permitAll().anyRequest().authenticated())
-                .sessionManagement(session-> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                        .requestMatchers("/login","/register","/logout","/send-reset-otp","/reset-password","/oauth2/**","/login/oauth2/**").permitAll().anyRequest().authenticated())
+                .sessionManagement(session-> session.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED))
                 .logout(logout->logout.disable())
+                .oauth2Login(c -> c
+                        .userInfoEndpoint(userInfo ->
+                                userInfo.userService(customOAuth2UserService)
+                        )
+                        .successHandler(oAuth2AuthenticationSuccessHandler)
+                )
                 .addFilterBefore(jwtFilter , UsernamePasswordAuthenticationFilter.class)
                 .exceptionHandling(ex -> ex.authenticationEntryPoint(customAuthenticationEntryPoint))
                 .build();

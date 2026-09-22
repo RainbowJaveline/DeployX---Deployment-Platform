@@ -15,7 +15,7 @@ import java.sql.Timestamp;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-@Table(name = "profile_table")
+@Table(name = "profile_table" )
 public class User {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -31,6 +31,10 @@ public class User {
     private Long verifyOtpExpireAt;
     private String resetOtp;
     private Long resetOtpExpireAt;
+
+    private String provider;
+    @Column(unique = true)
+    private String providerId;
 
     @CreationTimestamp
     @Column(updatable = false)

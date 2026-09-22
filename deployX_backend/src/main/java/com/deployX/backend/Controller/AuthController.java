@@ -36,6 +36,13 @@ public class AuthController {
     private final ProfileImpl profile;
     private final UserRepository userRepository;
 
+    @GetMapping("/login")
+    public ResponseEntity<?> loginError() {
+        return ResponseEntity
+                .status(HttpStatus.UNAUTHORIZED)
+                .body("OAuth2 login failed");
+    }
+
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody AuthRequest authRequest){
         try{
