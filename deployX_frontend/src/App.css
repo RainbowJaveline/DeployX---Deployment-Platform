@@ -1,0 +1,37 @@
+.page {
+  position: relative;
+  min-height: 100vh;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 15% 20%, rgba(109, 94, 240, 0.08), transparent 40%),
+    radial-gradient(circle at 85% 75%, rgba(109, 94, 240, 0.06), transparent 45%),
+    var(--bg-void);
+}
+
+.page__grid {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: 1.15fr 0.85fr;
+  align-items: center;
+  gap: 64px;
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 90px 64px;
+  min-height: 100vh;
+}
+
+@media (max-width: 1080px) {
+  .page__grid {
+    grid-template-columns: 1fr;
+    justify-items: center;
+    padding: 64px 32px;
+    gap: 56px;
+  }
+}
+
+@media (max-width: 640px) {
+  .page__grid {
+    padding: 48px 20px;
+  }
+}

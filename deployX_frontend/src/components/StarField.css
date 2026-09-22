@@ -1,0 +1,13 @@
+.star-field {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.star-field__dot {
+  position: absolute;
+  border-radius: 50%;
+  background: var(--text-secondary);
+}

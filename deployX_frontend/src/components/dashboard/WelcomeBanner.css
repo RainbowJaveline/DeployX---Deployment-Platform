@@ -1,0 +1,78 @@
+.welcome-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 28px 32px;
+  border-radius: var(--radius-lg);
+  background:
+    radial-gradient(circle at 15% 30%, rgba(109, 94, 240, 0.16), transparent 55%),
+    var(--bg-panel);
+  border: 1px solid var(--border-subtle);
+}
+
+.welcome-banner__copy {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.welcome-banner__status {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  width: fit-content;
+  font-family: var(--font-mono);
+  font-size: 0.76rem;
+  color: var(--success);
+}
+
+.welcome-banner__status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--success);
+  box-shadow: 0 0 0 3px rgba(62, 207, 142, 0.18);
+}
+
+.welcome-banner__heading {
+  font-size: 1.7rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.welcome-banner__subtext {
+  color: var(--text-secondary);
+  font-size: 0.95rem;
+}
+
+.welcome-banner__cta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 20px;
+  border-radius: var(--radius-sm);
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #fff;
+  background: linear-gradient(180deg, var(--accent-bright), var(--accent));
+  box-shadow: 0 10px 24px -8px rgba(109, 94, 240, 0.55);
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: filter 0.15s ease;
+}
+
+.welcome-banner__cta:hover {
+  filter: brightness(1.06);
+}
+
+@media (max-width: 640px) {
+  .welcome-banner {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .welcome-banner__cta {
+    width: 100%;
+    justify-content: center;
+  }
+}
