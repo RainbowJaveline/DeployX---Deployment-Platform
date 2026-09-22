@@ -39,7 +39,7 @@ public class SecurityConfig {
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception{
         return http.csrf(csrf->csrf.disable())
                 .authorizeHttpRequests(request -> request
-                        .requestMatchers("/login","/register","/logout","/send-reset-otp","/reset-password","/oauth2/**","/login/oauth2/**").permitAll().anyRequest().authenticated())
+                        .requestMatchers("/login","/register","/logout","/send-reset-otp","/reset-password","/oauth2/**","/login/oauth2/**","/error").permitAll().anyRequest().authenticated())
                 .sessionManagement(session-> session.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED))
                 .logout(logout->logout.disable())
                 .oauth2Login(c -> c
