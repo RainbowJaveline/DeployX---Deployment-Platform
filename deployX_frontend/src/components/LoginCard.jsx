@@ -57,8 +57,9 @@ export default function LoginCard() {
 
 
   function handleGithubSignIn() {
-    // Replace with your real GitHub OAuth redirect.
-    console.log('Continue with GitHub')
+    // this is the oauth2 redirect to the spring backend
+    window.location.href = 'http://localhost:8082/api/v1.0/oauth2/authorization/github'
+
   }
 
   return (
