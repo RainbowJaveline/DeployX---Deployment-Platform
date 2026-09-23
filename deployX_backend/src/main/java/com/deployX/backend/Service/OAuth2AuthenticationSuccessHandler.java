@@ -67,7 +67,7 @@ public class OAuth2AuthenticationSuccessHandler
                 cookie.toString()
         );
 
-        // Redirect to React
-        response.sendRedirect("http://localhost:5173");
+        // Redirect to React Dashboard
+        response.sendRedirect("http://localhost:5173/dashboard");
     }
 }
