@@ -1,0 +1,210 @@
+/* New Deployment Content
+   Sidebar and Topbar styles come from the existing dashboard components.
+*/
+
+.new-deployment__main {
+  min-height: calc(100vh - 70px);
+  padding: 32px 36px;
+  box-sizing: border-box;
+  color: #e5e7eb;
+}
+
+.new-deployment__container {
+  width: 100%;
+  max-width: 620px;
+  margin: 0 auto;
+}
+
+/* Heading */
+
+.new-deployment__heading {
+  margin-bottom: 28px;
+}
+
+.new-deployment__heading h1 {
+  margin: 0 0 10px;
+  color: #f3f4f6;
+  font-size: 26px;
+  font-weight: 650;
+  letter-spacing: -0.6px;
+}
+
+.new-deployment__heading p {
+  max-width: 560px;
+  margin: 0;
+  color: #9ca3af;
+  font-size: 15px;
+  line-height: 1.6;
+}
+
+/* Cards */
+
+.new-deployment__card {
+  margin-bottom: 18px;
+  padding: 24px;
+  background: #0e0e15;
+  border: 1px solid #252530;
+  border-radius: 12px;
+  box-sizing: border-box;
+}
+
+.new-deployment__card-header {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.new-deployment__github-icon {
+  width: 42px;
+  height: 42px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: #e5e7eb;
+  background: #15151e;
+  border: 1px solid #292936;
+  border-radius: 9px;
+}
+
+.new-deployment__card-title h3 {
+  margin: 0 0 6px;
+  color: #f3f4f6;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.new-deployment__card-title p {
+  margin: 0;
+  color: #8792a8;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+/* GitHub Button */
+
+.new-deployment__github-button {
+  height: 42px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin: 18px 0 0 57px;
+  padding: 0 17px;
+  color: #f3f4f6;
+  background: #22222d;
+  border: 1px solid #30303d;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.new-deployment__github-button:hover {
+  background: #30303e;
+}
+
+/* Repository URL */
+
+.new-deployment__repository-card label {
+  display: block;
+  margin-bottom: 7px;
+  color: #f3f4f6;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.new-deployment__repository-card p {
+  margin: 0 0 14px;
+  color: #8792a8;
+  font-size: 13px;
+}
+
+.new-deployment__repository-card input {
+  width: 100%;
+  height: 42px;
+  padding: 0 13px;
+  box-sizing: border-box;
+  color: #e5e7eb;
+  background: #15151e;
+  border: 1px solid #292936;
+  border-radius: 8px;
+  outline: none;
+  font-size: 13px;
+}
+
+.new-deployment__repository-card input::placeholder {
+  color: #59647a;
+}
+
+.new-deployment__repository-card input:focus {
+  border-color: #6555e8;
+}
+
+/* Continue Button */
+
+.new-deployment__continue-button {
+  width: 100%;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 22px;
+  color: #f3f4f6;
+  background: #6555e8;
+  border: 1px solid #7668f0;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.new-deployment__continue-button:hover {
+  background: #7567f0;
+}
+
+.new-deployment__continue-button span {
+  font-size: 18px;
+}
+
+/* Responsive */
+
+@media (max-width: 700px) {
+  .new-deployment__main {
+    padding: 24px 18px;
+  }
+
+  .new-deployment__heading h1 {
+    font-size: 22px;
+  }
+
+  .new-deployment__heading p {
+    font-size: 14px;
+  }
+
+  .new-deployment__card {
+    padding: 18px;
+  }
+
+  .new-deployment__github-button {
+    margin-left: 0;
+  }
+}
+
+.new-deployment__back-link {
+  display: inline-flex;
+  align-items: center;
+  margin-bottom: 20px;
+  color: #9ca3af;
+  font-size: 13px;
+  font-weight: 500;
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+.new-deployment__back-link:hover {
+  color: #8b7cff;
+}

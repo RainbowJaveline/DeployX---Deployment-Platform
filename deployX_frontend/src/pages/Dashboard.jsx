@@ -1,3 +1,4 @@
+import { useNavigate } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import Sidebar from '../components/dashboard/Sidebar'
 import Topbar from '../components/dashboard/Topbar'
@@ -11,6 +12,8 @@ import './Dashboard.css'
 export default function Dashboard() {
   const [firstName, setFirstName] = useState('there')
 
+  const navigate = useNavigate()
+  
   useEffect(() => {
     const stored = getStoredName()
     const first = firstNameOf(stored)
@@ -18,9 +21,8 @@ export default function Dashboard() {
   }, [])
 
   function handleNewDeployment() {
-    // Wire this up to your real "create deployment" flow.
-    console.log('New deployment requested')
-  }
+  navigate('/new-deployment')
+}
 
   return (
     <div className="dashboard">
