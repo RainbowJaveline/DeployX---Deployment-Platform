@@ -36,6 +36,10 @@ public class User {
     @Column(unique = true)
     private String providerId;
 
+    private String githubUsername;
+
+    private String githubAccessToken;
+
     @CreationTimestamp
     @Column(updatable = false)
     private Timestamp createdAt;
