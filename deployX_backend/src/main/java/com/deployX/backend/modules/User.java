@@ -36,6 +36,7 @@ public class User {
     @Column(unique = true)
     private String providerId;
 
+    private String githubProviderId;
     private String githubUsername;
 
     private String githubAccessToken;

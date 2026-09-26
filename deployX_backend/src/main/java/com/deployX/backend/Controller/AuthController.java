@@ -7,6 +7,9 @@ import com.deployX.backend.Util.JwtUtil;
 import com.deployX.backend.io.AuthRequest;
 import com.deployX.backend.io.AuthResponse;
 import com.deployX.backend.io.ResetPasswordRequest;
+import com.deployX.backend.modules.User;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;
@@ -22,6 +25,7 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.io.IOException;
 import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
@@ -103,7 +107,38 @@ public class AuthController {
         }
     }
 
+    @GetMapping("/github/connection")
+    public void githubConnection(
+            HttpServletRequest request,
+            HttpServletResponse response) throws IOException {
 
+        String email = (String) request.getAttribute("deployxUserEmail");
+
+        if (email == null) {
+            throw new ResponseStatusException(
+                    HttpStatus.UNAUTHORIZED,
+                    "DeployX authentication required"
+            );
+        }
+
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() ->
+                        new ResponseStatusException(
+                                HttpStatus.UNAUTHORIZED,
+                                "User not found"
+                        )
+                );
+
+        request.getSession().setAttribute(
+                "github_connect_user_id",
+                user.getId()
+        );
+
+        response.sendRedirect(
+                request.getContextPath() +
+                        "/oauth2/authorization/github"
+        );
+    }
 
 
 }

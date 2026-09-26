@@ -58,17 +58,50 @@ public class JwtFilter extends OncePerRequestFilter {
 
         //3. Validate the token and set the security context
         if (jwt != null) {
+
             email = jwtUtil.extractEmail(jwt);
-            if (email != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-                UserDetails userDetails = appUserDetailsService.loadUserByUsername(email);
+
+            if (email != null) {
+
+                UserDetails userDetails =
+                        appUserDetailsService.loadUserByUsername(email);
+
                 if (jwtUtil.ValidateToken(jwt, userDetails)) {
-                    UsernamePasswordAuthenticationToken usernamePasswordAuthenticationToken =
-                            new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
-                    usernamePasswordAuthenticationToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-                    SecurityContextHolder.getContext().setAuthentication(usernamePasswordAuthenticationToken);
+
+                    // Store the DeployX user identity for this request
+                    request.setAttribute("deployxUserEmail", email);
+
+                    // Only set SecurityContext if there isn't already
+                    // another authentication such as OAuth2
+                    if (SecurityContextHolder.getContext().getAuthentication() == null) {
+
+                        UsernamePasswordAuthenticationToken authentication =
+                                new UsernamePasswordAuthenticationToken(
+                                        userDetails,
+                                        null,
+                                        userDetails.getAuthorities()
+                                );
+
+                        authentication.setDetails(
+                                new WebAuthenticationDetailsSource()
+                                        .buildDetails(request)
+                        );
+
+                        SecurityContextHolder.getContext()
+                                .setAuthentication(authentication);
+                    }
                 }
             }
         }
+        System.out.println(
+                "FINAL AUTHENTICATION: " +
+                        SecurityContextHolder.getContext().getAuthentication()
+        );
+
+        System.out.println(
+                "DEPLOYX EMAIL ATTRIBUTE: " +
+                        request.getAttribute("deployxUserEmail")
+        );
         filterChain.doFilter(request, response);
     }
 }

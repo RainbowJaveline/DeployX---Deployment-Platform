@@ -6,15 +6,20 @@ import com.deployX.backend.modules.User;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseCookie;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.oauth2.client.OAuth2AuthorizedClient;
+import org.springframework.security.oauth2.client.OAuth2AuthorizedClientService;
+import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
 import java.time.Duration;
+import java.util.Optional;
 
 @Component
 @RequiredArgsConstructor
@@ -24,6 +29,8 @@ public class OAuth2AuthenticationSuccessHandler
     private final UserRepository userRepository;
     private final AppUserDetailsService userDetailsService;
     private final JwtUtil jwtUtil;
+
+    private final OAuth2AuthorizedClientService authorizedClientService;
 
     @Override
     public void onAuthenticationSuccess(
@@ -36,38 +43,206 @@ public class OAuth2AuthenticationSuccessHandler
                 (OAuth2User) authentication.getPrincipal();
 
         Object id = oauth2User.getAttribute("id");
-        String providerId = String.valueOf(id);
 
-        User user = userRepository
-                .findByProviderAndProviderId("GITHUB", providerId)
-                .orElseThrow(() ->
-                        new RuntimeException("GitHub user not found"));
+        String githubProviderId =
+                String.valueOf(id);
 
-        // Load the same UserDetails used by normal login
-        var userDetails =
-                userDetailsService.loadUserByUsername(user.getEmail());
+        /*
+         * Check whether this OAuth flow was started
+         * from "Connect GitHub".
+         */
+        HttpSession session =
+                request.getSession(false);
 
-        // Generate JWT
-        String jwtToken =
-                jwtUtil.generateToken(userDetails);
-
-        // Create the same cookie used by normal login
-        ResponseCookie cookie = ResponseCookie.from(
-                        "jwt",
-                        jwtToken
+        Object connectUserIdObject =
+                session != null
+                        ? session.getAttribute(
+                        "github_connect_user_id"
                 )
-                .httpOnly(true)
-                .path("/")
-                .maxAge(Duration.ofDays(1))
-                .sameSite("Strict")
-                .build();
+                        : null;
+
+        /*
+         * ==========================================
+         * CONNECT GITHUB FLOW
+         * ==========================================
+         */
+
+        if (connectUserIdObject != null) {
+
+            Long connectUserId =
+                    ((Number) connectUserIdObject).longValue();
+
+            User currentUser =
+                    userRepository
+                            .findById(connectUserId)
+                            .orElseThrow(() ->
+                                    new RuntimeException(
+                                            "DeployX user not found"
+                                    )
+                            );
+
+            /*
+             * Check whether this GitHub account
+             * is already connected to another
+             * DeployX account.
+             */
+            Optional<User> existingGithubUser =
+                    userRepository
+                            .findByGithubProviderId(
+                                    githubProviderId
+                            );
+
+            if (existingGithubUser.isPresent()
+                    && !existingGithubUser
+                    .get()
+                    .getId()
+                    .equals(currentUser.getId())) {
+
+                session.removeAttribute(
+                        "github_connect_user_id"
+                );
+
+                response.sendRedirect(
+                        "http://localhost:5173/new-deployment?github=already-connected"
+                );
+
+                return;
+            }
+
+            /*
+             * Get GitHub username.
+             */
+            String githubUsername =
+                    oauth2User.getAttribute("login");
+
+            /*
+             * Get the OAuth2 access token.
+             */
+            OAuth2AuthenticationToken
+                    oauth2Authentication =
+                    (OAuth2AuthenticationToken)
+                            authentication;
+
+            OAuth2AuthorizedClient
+                    authorizedClient =
+                    authorizedClientService
+                            .loadAuthorizedClient(
+                                    oauth2Authentication
+                                            .getAuthorizedClientRegistrationId(),
+                                    oauth2Authentication
+                                            .getName()
+                            );
+
+            if (authorizedClient == null) {
+                throw new RuntimeException(
+                        "GitHub authorization information not found"
+                );
+            }
+
+            String accessToken =
+                    authorizedClient
+                            .getAccessToken()
+                            .getTokenValue();
+
+            /*
+             * Save GitHub connection details
+             * against the existing DeployX user.
+             */
+            currentUser.setGithubProviderId(
+                    githubProviderId
+            );
+
+            currentUser.setGithubUsername(
+                    githubUsername
+            );
+
+            currentUser.setGithubAccessToken(
+                    accessToken
+            );
+
+            userRepository.save(currentUser);
+
+            /*
+             * Connection is complete.
+             * Remove temporary session information.
+             */
+            session.removeAttribute(
+                    "github_connect_user_id"
+            );
+
+            /*
+             * Send the user back to the
+             * New Deployment page.
+             */
+            response.sendRedirect(
+                    "http://localhost:5173/new-deployment?github=connected"
+            );
+
+            return;
+        }
+
+        /*
+         * ==========================================
+         * NORMAL GITHUB LOGIN FLOW
+         * ==========================================
+         */
+
+        User user =
+                userRepository
+                        .findByProviderAndProviderId(
+                                "GITHUB",
+                                githubProviderId
+                        )
+                        .orElseThrow(() ->
+                                new RuntimeException(
+                                        "GitHub user not found"
+                                )
+                        );
+
+        /*
+         * Load the same UserDetails used
+         * by normal email/password login.
+         */
+        var userDetails =
+                userDetailsService
+                        .loadUserByUsername(
+                                user.getEmail()
+                        );
+
+        /*
+         * Generate DeployX JWT.
+         */
+        String jwtToken =
+                jwtUtil.generateToken(
+                        userDetails
+                );
+
+        /*
+         * Store JWT in HttpOnly cookie.
+         */
+        ResponseCookie cookie =
+                ResponseCookie.from(
+                                "jwt",
+                                jwtToken
+                        )
+                        .httpOnly(true)
+                        .path("/")
+                        .maxAge(
+                                Duration.ofDays(1)
+                        )
+                        .sameSite("Strict")
+                        .build();
 
         response.addHeader(
                 "Set-Cookie",
                 cookie.toString()
         );
 
-        // Redirect to React Dashboard
-        response.sendRedirect("http://localhost:5173/dashboard");
+        /*
+         * Normal GitHub login goes to dashboard.
+         */
+        response.sendRedirect(
+                "http://localhost:5173/dashboard"
+        );
     }
 }

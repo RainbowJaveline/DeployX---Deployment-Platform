@@ -2,6 +2,10 @@ package com.deployX.backend.Service;
 
 import com.deployX.backend.Repository.UserRepository;
 import com.deployX.backend.modules.User;
+import jakarta.servlet.ServletRequestAttributeEvent;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -11,6 +15,8 @@ import org.springframework.security.oauth2.core.OAuth2AuthenticationException;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
 
 import java.util.List;
 import java.util.Map;
@@ -26,6 +32,18 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
             throws OAuth2AuthenticationException {
 
         OAuth2User oauth2User = super.loadUser(userRequest);
+
+        /*
+         * If this is the "Connect GitHub" flow,
+         * do NOT create/login a DeployX user here.
+         *
+         * The SuccessHandler will handle the
+         * actual GitHub connection.
+         */
+
+        if(isGithubConnectFlow()){
+            return oauth2User;
+        }
 
         String provider = userRequest
                 .getClientRegistration()
@@ -138,5 +156,19 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
         }
 
         return null;
+    }
+
+    private boolean isGithubConnectFlow(){
+        ServletRequestAttributes servletRequestAttributes =
+                (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
+
+        if(servletRequestAttributes == null){
+            return false;
+        }
+        HttpServletRequest request = servletRequestAttributes.getRequest();
+        HttpSession session = request.getSession(false);
+
+        return session!=null && session.getAttribute("github_connect_user_id") != null;
+
     }
 }
