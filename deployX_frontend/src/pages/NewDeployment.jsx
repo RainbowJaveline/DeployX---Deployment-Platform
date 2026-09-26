@@ -1,16 +1,51 @@
-import React from "react";
-import { Link } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { Github, GitBranch, Check } from "lucide-react";
+
 import Sidebar from "../components/dashboard/Sidebar";
 import Topbar from "../components/dashboard/Topbar";
-import { useNavigate } from "react-router-dom";
 import { getStoredName, firstNameOf } from "../utils/user";
-import { useEffect, useState } from "react";
+
 import "./NewDeployment.css";
 
-function NewDeployment() {
+const mockRepositories = [
+  {
+    id: 1,
+    name: "demoshop",
+    owner: "alex",
+    visibility: "Public",
+    language: "React",
+  },
+  {
+    id: 2,
+    name: "portfolio",
+    owner: "alex",
+    visibility: "Public",
+    language: "React",
+  },
+  {
+    id: 3,
+    name: "ecommerce",
+    owner: "alex",
+    visibility: "Private",
+    language: "React",
+  },
+  {
+    id: 4,
+    name: "api-gateway",
+    owner: "alex",
+    visibility: "Private",
+    language: "Spring Boot",
+  },
+];
+
+export default function NewDeployment() {
   const navigate = useNavigate();
 
   const [firstName, setFirstName] = useState("there");
+  const [githubConnected, setGithubConnected] = useState(false);
+  const [repositories, setRepositories] = useState([]);
+  const [selectedRepository, setSelectedRepository] = useState(null);
   const [repositoryUrl, setRepositoryUrl] = useState("");
 
   useEffect(() => {
@@ -22,46 +57,67 @@ function NewDeployment() {
     }
   }, []);
 
-  function handleNewDeployment() {
-    // Already on the New Deployment page.
+  function handleConnectGithub() {
+    /*
+      TEMPORARY FRONTEND DEMO
+
+      Later this function will call your Spring Boot backend
+      to perform the real GitHub OAuth flow.
+
+      Example future flow:
+
+      window.location.href =
+        "http://localhost:8080/api/github/connect";
+    */
+
+    setGithubConnected(true);
+    setRepositories(mockRepositories);
+  }
+
+  function handleRepositorySelect(repository) {
+    setSelectedRepository(repository);
   }
 
   function handleContinue() {
-    if (!repositoryUrl.trim()) {
-      alert("Please enter your GitHub repository URL.");
+    if (!selectedRepository && !repositoryUrl.trim()) {
+      alert("Please select a repository or enter a repository URL.");
       return;
     }
 
-    if (!repositoryUrl.startsWith("https://github.com/")) {
-      alert("Please enter a valid GitHub repository URL.");
-      return;
-    }
+    const repository = selectedRepository
+      ? `https://github.com/${selectedRepository.owner}/${selectedRepository.name}`
+      : repositoryUrl.trim();
 
-    alert(
-      "Repository analysis and deployment will be connected with the backend."
-    );
+    navigate("/repository-analysis", {
+      state: {
+        repository,
+      },
+    });
+  }
+
+  function handleNewDeployment() {
+    // Already on this page.
   }
 
   return (
     <div className="dashboard">
-      {/* Reuse the existing dashboard sidebar */}
       <Sidebar userName={firstName} />
 
       <div className="dashboard__content">
-        {/* Reuse the existing dashboard topbar */}
         <Topbar
           title="New Deployment"
           onNewDeployment={handleNewDeployment}
         />
 
-        {/* New Deployment Page Content */}
         <main className="new-deployment__main">
           <div className="new-deployment__container">
-             
-              {/* Back to Dashboard Link */}
-           <Link to="/dashboard" className="new-deployment__back-link">
-          ← Back to Dashboard
-           </Link>
+
+            <Link
+              to="/dashboard"
+              className="new-deployment__back-link"
+            >
+              ← Back to Dashboard
+            </Link>
 
             <div className="new-deployment__heading">
               <h1>Create a new deployment</h1>
@@ -72,76 +128,153 @@ function NewDeployment() {
               </p>
             </div>
 
-            {/* GitHub Connection Card */}
-            <div className="new-deployment__card">
-              <div className="new-deployment__card-header">
+            {/* GitHub Card */}
+            <section
+              className={`github-card ${
+                githubConnected ? "github-card--connected" : ""
+              }`}
+            >
+              <div className="github-card__header">
 
-                <div className="new-deployment__github-icon">
-                  <svg
-                    viewBox="0 0 24 24"
-                    width="23"
-                    height="23"
-                    fill="currentColor"
-                    aria-hidden="true"
-                  >
-                    <path d="M12 .8a11.2 11.2 0 0 0-3.54 21.83c.56.1.76-.24.76-.54v-2.1c-3.1.68-3.76-1.32-3.76-1.32-.51-1.3-1.25-1.65-1.25-1.65-1.02-.7.08-.69.08-.69 1.13.08 1.72 1.16 1.72 1.16 1 .1.78 1.93 3.7 1.93.3 0 .6-.02.9-.06.1-.7.4-1.32.75-1.72-2.48-.28-5.09-1.24-5.09-5.52 0-1.22.44-2.22 1.16-3-.12-.28-.5-1.42.11-2.96 0 0 .95-.3 3.08 1.15a10.7 10.7 0 0 1 5.6 0c2.13-1.45 3.08-1.15 3.08-1.15.61 1.54.23 2.68.11 2.96.72.78 1.16 1.78 1.16 3 0 4.29-2.62 5.23-5.12 5.51.41.36.78 1.05.78 2.12v3.14c0 .3.2.65.77.54A11.2 11.2 0 0 0 12 .8Z" />
-                  </svg>
+                <div
+                  className={`github-card__icon ${
+                    githubConnected
+                      ? "github-card__icon--connected"
+                      : ""
+                  }`}
+                >
+                  {githubConnected ? (
+                    <Check size={24} />
+                  ) : (
+                    <Github size={24} />
+                  )}
                 </div>
 
-                <div className="new-deployment__card-title">
-                  <h3>Connect GitHub</h3>
-                  <p>Allow DeployX to access your repositories.</p>
-                </div>
+                <div>
+                  <h2>
+                    {githubConnected
+                      ? "GitHub Connected"
+                      : "Connect GitHub"}
+                  </h2>
 
+                  <p>
+                    {githubConnected
+                      ? "Select a repository to deploy."
+                      : "Allow DeployX to access your repositories."}
+                  </p>
+                </div>
               </div>
 
-              <button
-                type="button"
-                className="new-deployment__github-button"
-                onClick={() => {
-                  alert(
-                    "GitHub OAuth integration will be connected with the backend."
-                  );
-                }}
-              >
-                <svg
-                  viewBox="0 0 24 24"
-                  width="20"
-                  height="20"
-                  fill="currentColor"
-                  aria-hidden="true"
+              {!githubConnected ? (
+                <button
+                  type="button"
+                  className="github-connect-btn"
+                  onClick={handleConnectGithub}
                 >
-                  <path d="M12 .8a11.2 11.2 0 0 0-3.54 21.83c.56.1.76-.24.76-.54v-2.1c-3.1.68-3.76-1.32-3.76-1.32-.51-1.3-1.25-1.65-1.25-1.65-1.02-.7.08-.69.08-.69 1.13.08 1.72 1.16 1.72 1.16 1 .1.78 1.93 3.7 1.93.3 0 .6-.02.9-.06.1-.7.4-1.32.75-1.72-2.48-.28-5.09-1.24-5.09-5.52 0-1.22.44-2.22 1.16-3-.12-.28-.5-1.42.11-2.96 0 0 .95-.3 3.08 1.15a10.7 10.7 0 0 1 5.6 0c2.13-1.45 3.08-1.15 3.08-1.15.61 1.54.23 2.68.11 2.96.72.78 1.16 1.78 1.16 3 0 4.29-2.62 5.23-5.12 5.51.41.36.78 1.05.78 2.12v3.14c0 .3.2.65.77.54A11.2 11.2 0 0 0 12 .8Z" />
-                </svg>
+                  <Github size={19} />
+                  Connect GitHub
+                </button>
+              ) : (
+                <div className="repository-list">
 
-                Connect GitHub
-              </button>
-            </div>
+                  {repositories.map((repo) => {
+                    const isSelected =
+                      selectedRepository?.id === repo.id;
 
-            {/* Repository URL Card */}
-            <div className="new-deployment__card new-deployment__repository-card">
-              <label htmlFor="repository-url">
-                Or enter a repository URL
-              </label>
+                    return (
+                      <button
+                        type="button"
+                        key={repo.id}
+                        className={`repository-item ${
+                          isSelected
+                            ? "repository-item--selected"
+                            : ""
+                        }`}
+                        onClick={() =>
+                          handleRepositorySelect(repo)
+                        }
+                      >
+                        <span
+                          className={`repository-radio ${
+                            isSelected
+                              ? "repository-radio--selected"
+                              : ""
+                          }`}
+                        >
+                          {isSelected && <span />}
+                        </span>
 
-              <p>Paste a public GitHub repository URL.</p>
+                        <GitBranch
+                          size={18}
+                          className="repository-item__branch"
+                        />
+
+                        <span className="repository-item__name">
+                          {repo.owner}/{repo.name}
+                        </span>
+
+                        <span
+                          className={`repository-visibility ${
+                            repo.visibility === "Private"
+                              ? "repository-visibility--private"
+                              : ""
+                          }`}
+                        >
+                          {repo.visibility}
+                        </span>
+                      </button>
+                    );
+                  })}
+
+                {selectedRepository && (
+                  <div className="selected-repository">
+                    <Check size={16} />
+                    <span>
+                      Selected:{" "}
+                      <strong>
+                        {selectedRepository.owner}/
+                        {selectedRepository.name}
+                      </strong>
+                    </span>
+                  </div>
+                )}
+              </div>
+            )}
+            </section>
+
+            {/* Repository URL */}
+            <section className="repository-url-card">
+              <h2>Or enter a repository URL</h2>
+
+              <p>
+                Paste a public GitHub repository URL.
+              </p>
 
               <input
-                id="repository-url"
-                type="url"
+                type="text"
                 value={repositoryUrl}
-                onChange={(event) => setRepositoryUrl(event.target.value)}
-                placeholder="https://github.com/Username/project"
+                onChange={(e) =>
+                  setRepositoryUrl(e.target.value)
+                }
+                placeholder="https://github.com/username/project"
+                disabled={!!selectedRepository}
               />
-            </div>
 
-            {/* Continue Button */}
+              {selectedRepository && (
+                <small>
+                  Repository selected above. URL input is disabled.
+                </small>
+              )}
+            </section>
+
+            {/* Continue */}
             <button
               type="button"
-              className="new-deployment__continue-button"
+              className="new-deployment__continue"
               onClick={handleContinue}
             >
-              Continue <span>→</span>
+              Continue
+              <span>→</span>
             </button>
 
           </div>
@@ -150,5 +283,3 @@ function NewDeployment() {
     </div>
   );
 }
-
-export default NewDeployment;
