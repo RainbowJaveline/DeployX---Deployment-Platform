@@ -1,0 +1,599 @@
+.configure-deployment-page {
+  width: min(760px, calc(100% - 48px));
+  margin: 0 auto;
+  padding: 18px 0 36px;
+}
+
+/* Breadcrumb */
+
+.configure-breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+
+  margin-bottom: 5px;
+
+  color: #596070;
+  font-size: 13px;
+}
+
+.configure-breadcrumb strong {
+  color: #596070;
+  font-weight: 500;
+}
+
+/* Header */
+
+.configure-header {
+  margin-bottom: 16px;
+}
+
+.configure-header h2 {
+  margin: 0 0 6px;
+
+  color: #f3f4f6;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.configure-header p {
+  margin: 0;
+
+  color: #747887;
+  font-size: 12px;
+}
+
+.configure-header p strong {
+  color: #aeb2bf;
+  font-weight: 500;
+}
+
+/* Environment */
+
+.environment-select-wrapper {
+  position: relative;
+
+  width: 200px;
+
+  margin-bottom: 20px;
+}
+
+.environment-select {
+  appearance: none;
+
+  width: 100%;
+
+  padding: 11px 38px 11px 17px;
+
+  color: #e7e8ed;
+  background: #15161d;
+
+  border: 1px solid #2d303b;
+  border-radius: 9px;
+
+  outline: none;
+
+  font-size: 13px;
+  font-weight: 600;
+
+  cursor: pointer;
+}
+
+.environment-select-wrapper svg {
+  position: absolute;
+
+  right: 12px;
+  top: 50%;
+
+  transform: translateY(-50%);
+
+  pointer-events: none;
+
+  color: #a4a7b2;
+}
+
+/* Resource Cards */
+
+.resource-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  min-height: 74px;
+
+  padding: 0 24px;
+
+  margin-bottom: 15px;
+
+  background: #0f1015;
+
+  border: 1px solid #292c36;
+  border-radius: 15px;
+}
+
+.resource-info {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.resource-icon {
+  width: 30px;
+  height: 30px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  border-radius: 7px;
+}
+
+.resource-icon--frontend {
+  color: #b39aff;
+  background: rgba(139, 92, 246, 0.13);
+}
+
+.resource-icon--backend {
+  color: #5ee5a0;
+  background: rgba(34, 197, 94, 0.12);
+}
+
+.resource-icon--database {
+  color: #d6c9e9;
+  background: rgba(192, 176, 214, 0.12);
+}
+
+.resource-info h3 {
+  margin: 0 0 3px;
+
+  color: #f0f1f4;
+  font-size: 14px;
+  font-weight: 650;
+}
+
+.resource-info p {
+  margin: 0;
+
+  color: #777b88;
+  font-size: 12px;
+}
+
+/* Resource Controls */
+
+.resource-control {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+
+  color: #74798a;
+  font-size: 12px;
+}
+
+.resource-control > span:first-child {
+  margin-right: 7px;
+}
+
+.resource-control button {
+  width: 35px;
+  height: 35px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  color: #8c90a0;
+  background: #15161d;
+
+  border: 1px solid #2b2e38;
+  border-radius: 9px;
+
+  cursor: pointer;
+}
+
+.resource-control button:hover {
+  color: #ffffff;
+  border-color: #454956;
+}
+
+.resource-control strong {
+  min-width: 10px;
+
+  color: #e6e7eb;
+
+  font-size: 14px;
+  text-align: center;
+}
+
+/* Environment Variables */
+
+.environment-card {
+  margin-top: 23px;
+
+  overflow: hidden;
+
+  background: #0f1015;
+
+  border: 1px solid #292c36;
+  border-radius: 14px;
+}
+
+.environment-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  padding: 17px 24px;
+
+  border-bottom: 1px solid #292c36;
+}
+
+.environment-card-header h3 {
+  margin: 0;
+
+  color: #e9eaee;
+  font-size: 14px;
+}
+
+.add-variable-btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+
+  color: #9486ff;
+  background: transparent;
+
+  border: 0;
+
+  font-size: 12px;
+
+  cursor: pointer;
+}
+
+.add-variable-btn:hover {
+  color: #afa5ff;
+}
+
+/* Add Variable */
+
+.add-variable-form {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  gap: 9px;
+
+  padding: 13px 24px;
+
+  background: #13141a;
+
+  border-bottom: 1px solid #292c36;
+}
+
+.add-variable-form input {
+  min-width: 0;
+
+  padding: 9px 11px;
+
+  color: #dfe1e7;
+  background: #0c0d11;
+
+  border: 1px solid #2b2e38;
+  border-radius: 7px;
+
+  outline: none;
+
+  font-size: 11px;
+}
+
+.add-variable-form button {
+  padding: 0 14px;
+
+  color: white;
+  background: #7d6cf0;
+
+  border: 0;
+  border-radius: 7px;
+
+  cursor: pointer;
+}
+
+/* Variable Rows */
+
+.variable-row {
+  display: grid;
+  grid-template-columns: 240px 1fr;
+
+  min-height: 49px;
+
+  border-bottom: 1px solid #252831;
+}
+
+.variable-row:last-child {
+  border-bottom: 0;
+}
+
+.variable-key,
+.variable-value {
+  width: 100%;
+  box-sizing: border-box;
+
+  padding: 0 24px;
+
+  color: #a7b0d8;
+  background: transparent;
+
+  border: 0;
+  outline: none;
+
+  font-family: monospace;
+  font-size: 12px;
+}
+
+.variable-value {
+  color: #969aa7;
+}
+
+.variable-key:focus,
+.variable-value:focus {
+  background: rgba(139, 124, 255, 0.035);
+}
+
+.variable-value-wrapper {
+  position: relative;
+
+  display: flex;
+  align-items: center;
+}
+
+.variable-value-wrapper .variable-value {
+  padding-right: 48px;
+}
+
+.password-toggle {
+  position: absolute;
+
+  right: 18px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  padding: 4px;
+
+  color: #707584;
+  background: transparent;
+
+  border: 0;
+
+  cursor: pointer;
+}
+
+.password-toggle:hover {
+  color: #c5c8d1;
+}
+
+/* Advanced Settings */
+
+.advanced-settings {
+  margin-top: 20px;
+
+  overflow: hidden;
+
+  background: #171820;
+
+  border: 1px solid #292c36;
+  border-radius: 14px;
+}
+
+.advanced-settings-header {
+  width: 100%;
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  padding: 19px 24px;
+
+  color: #e8e9ed;
+  background: transparent;
+
+  border: 0;
+
+  cursor: pointer;
+
+  text-align: left;
+}
+
+.advanced-settings-header svg {
+  color: #7e8290;
+}
+
+.advanced-settings-content {
+  padding: 0 24px 18px;
+
+  border-top: 1px solid #292c36;
+}
+
+.advanced-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  padding: 17px 0;
+
+  border-bottom: 1px solid #252831;
+}
+
+.advanced-row:last-child {
+  border-bottom: 0;
+}
+
+.advanced-row div {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.advanced-row strong {
+  color: #dfe1e7;
+  font-size: 12px;
+}
+
+.advanced-row span {
+  color: #6f7380;
+  font-size: 11px;
+}
+
+/* Toggle */
+
+.toggle {
+  position: relative;
+
+  width: 38px;
+  height: 21px;
+
+  flex-shrink: 0;
+}
+
+.toggle input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.toggle span {
+  position: absolute;
+  inset: 0;
+
+  background: #2e313b;
+
+  border-radius: 20px;
+
+  cursor: pointer;
+}
+
+.toggle span::before {
+  content: '';
+
+  position: absolute;
+
+  width: 15px;
+  height: 15px;
+
+  left: 3px;
+  top: 3px;
+
+  background: #8b8f9d;
+
+  border-radius: 50%;
+
+  transition: 0.2s ease;
+}
+
+.toggle input:checked + span {
+  background: #7d6cf0;
+}
+
+.toggle input:checked + span::before {
+  transform: translateX(17px);
+
+  background: white;
+}
+
+/* Bottom Buttons */
+
+.configure-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+
+  gap: 15px;
+
+  margin-top: 40px;
+}
+
+.save-config-btn,
+.deploy-application-btn {
+  height: 57px;
+
+  border-radius: 9px;
+
+  font-size: 14px;
+  font-weight: 600;
+
+  cursor: pointer;
+}
+
+.save-config-btn {
+  color: #aeb1bd;
+  background: #111219;
+
+  border: 1px solid #292c36;
+}
+
+.save-config-btn:hover {
+  color: #e7e8ed;
+  border-color: #414451;
+}
+
+.deploy-application-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+
+  color: white;
+
+  background: linear-gradient(
+    135deg,
+    #765de8,
+    #6048dc
+  );
+
+  border: 0;
+}
+
+.deploy-application-btn:hover {
+  background: linear-gradient(
+    135deg,
+    #826cf0,
+    #6a52e7
+  );
+}
+
+/* Responsive */
+
+@media (max-width: 700px) {
+  .configure-deployment-page {
+  width: min(760px, calc(100% - 48px));
+  margin: 0 auto;
+  padding: 18px 0 36px;
+  min-height: 100vh;
+}
+
+  .resource-card {
+    padding: 0 16px;
+  }
+
+  .resource-control {
+    gap: 7px;
+  }
+
+  .resource-control > span:first-child {
+    display: none;
+  }
+
+  .variable-row {
+    grid-template-columns: 1fr;
+  }
+
+  .variable-key,
+  .variable-value {
+    padding: 12px 16px;
+  }
+
+  .configure-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .add-variable-form {
+    grid-template-columns: 1fr;
+  }
+}
