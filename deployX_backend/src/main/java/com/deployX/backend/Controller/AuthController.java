@@ -103,7 +103,7 @@ public class AuthController {
         try{
             profile.resetPassword(passwordRequest.getEmail() , passwordRequest.getOtp(), passwordRequest.getNewPassword());
         }catch(Exception e){
-            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR , e.getMessage());
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR , e.getMessage(),e);
         }
     }
 

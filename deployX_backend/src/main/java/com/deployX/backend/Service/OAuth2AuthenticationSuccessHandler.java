@@ -39,6 +39,29 @@ public class OAuth2AuthenticationSuccessHandler
             Authentication authentication)
             throws IOException, ServletException {
 
+        System.out.println("========================================");
+        System.out.println("OAUTH SUCCESS HANDLER STARTED");
+
+        HttpSession debugSession = request.getSession(false);
+
+        System.out.println(
+                "SESSION ID = " +
+                        (debugSession != null ? debugSession.getId() : "NULL")
+        );
+
+        System.out.println(
+                "CONNECT USER ID = " +
+                        (debugSession != null
+                                ? debugSession.getAttribute("github_connect_user_id")
+                                : "NULL")
+        );
+
+        System.out.println(
+                "AUTHENTICATION NAME = " +
+                        authentication.getName()
+        );
+
+        System.out.println("========================================");
         OAuth2User oauth2User =
                 (OAuth2User) authentication.getPrincipal();
 
@@ -92,6 +115,35 @@ public class OAuth2AuthenticationSuccessHandler
                                     githubProviderId
                             );
 
+            System.out.println("========== GITHUB USER CHECK ==========");
+            System.out.println(
+                    "Current DeployX User ID = " +
+                            currentUser.getId()
+            );
+
+            System.out.println(
+                    "GitHub Provider ID = " +
+                            githubProviderId
+            );
+
+            System.out.println(
+                    "Existing GitHub User Present = " +
+                            existingGithubUser.isPresent()
+            );
+
+            if (existingGithubUser.isPresent()) {
+                System.out.println(
+                        "Existing GitHub User ID = " +
+                                existingGithubUser.get().getId()
+                );
+            }
+
+            System.out.println("=======================================");
+
+
+
+
+
             if (existingGithubUser.isPresent()
                     && !existingGithubUser
                     .get()
@@ -133,6 +185,39 @@ public class OAuth2AuthenticationSuccessHandler
                                             .getName()
                             );
 
+            System.out.println("========== GITHUB CONNECT DEBUG ==========");
+
+            System.out.println(
+                    "CONNECT USER ID = " +
+                            (session != null
+                                    ? session.getAttribute("github_connect_user_id")
+                                    : null)
+            );
+
+            System.out.println(
+                    "OAUTH REGISTRATION ID = " +
+                            oauth2Authentication.getAuthorizedClientRegistrationId()
+            );
+
+            System.out.println(
+                    "OAUTH PRINCIPAL NAME = " +
+                            oauth2Authentication.getName()
+            );
+
+            System.out.println(
+                    "AUTHORIZED CLIENT = " +
+                            authorizedClient
+            );
+
+            if (authorizedClient != null) {
+                System.out.println(
+                        "ACCESS TOKEN EXISTS = " +
+                                (authorizedClient.getAccessToken() != null)
+                );
+            }
+
+            System.out.println("==========================================");
+
             if (authorizedClient == null) {
                 throw new RuntimeException(
                         "GitHub authorization information not found"
@@ -160,11 +245,67 @@ public class OAuth2AuthenticationSuccessHandler
                     accessToken
             );
 
+
+// DEBUG: Check values before saving to database
+            System.out.println("========== BEFORE SAVE ==========");
+            System.out.println("User ID = " + currentUser.getId());
+            System.out.println("Email = " + currentUser.getEmail());
+            System.out.println(
+                    "GitHub Provider ID = " +
+                            currentUser.getGithubProviderId()
+            );
+            System.out.println(
+                    "GitHub Username = " +
+                            currentUser.getGithubUsername()
+            );
+            System.out.println(
+                    "GitHub Access Token exists = " +
+                            (
+                                    currentUser.getGithubAccessToken() != null &&
+                                            !currentUser.getGithubAccessToken().isBlank()
+                            )
+            );
+            System.out.println("================================");
+
             userRepository.save(currentUser);
 
             /*
+             * Generate a DeployX JWT for the existing
+             * DeployX user.
+             *
+             * IMPORTANT:
+             * We use currentUser.getEmail(), not the
+             * GitHub provider ID.
+             */
+            var userDetails =
+                    userDetailsService.loadUserByUsername(
+                            currentUser.getEmail()
+                    );
+
+            String jwtToken =
+                    jwtUtil.generateToken(userDetails);
+
+            /*
+             * Store the DeployX JWT in an HttpOnly cookie.
+             */
+            ResponseCookie cookie =
+                    ResponseCookie.from(
+                                    "jwt",
+                                    jwtToken
+                            )
+                            .httpOnly(true)
+                            .path("/")
+                            .maxAge(Duration.ofDays(1))
+                            .sameSite("Strict")
+                            .build();
+
+            response.addHeader(
+                    "Set-Cookie",
+                    cookie.toString()
+            );
+
+            /*
              * Connection is complete.
-             * Remove temporary session information.
              */
             session.removeAttribute(
                     "github_connect_user_id"
