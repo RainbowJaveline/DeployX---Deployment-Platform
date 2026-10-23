@@ -13,4 +13,10 @@ public interface DeploymentRepository extends JpaRepository<Deployment, Long> {
     Optional<Deployment> findByDeploymentId(UUID deploymentId);
 
     boolean existsByDeploymentId(UUID deploymentId);
+
+    Optional<Deployment> findByDeploymentIdAndUser_Email(
+            UUID deploymentId,
+            String email
+    );
+
 }

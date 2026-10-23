@@ -1,6 +1,7 @@
 package com.deployX.backend.Controller;
 
 import com.deployX.backend.Service.DeploymentService;
+import com.deployX.backend.io.DeploymentCreationResponse;
 import com.deployX.backend.io.deploymentRequest;
 import com.deployX.backend.io.deploymentResponse;
 import jakarta.servlet.http.HttpServletRequest;
@@ -27,4 +28,26 @@ public class DeploymentController {
         }
         return deploymentService.analyzeRepository( email , request);
     }
+
+
+
+    @PostMapping("/create")
+    @ResponseStatus(HttpStatus.CREATED)
+    public DeploymentCreationResponse createDeployment(
+            deploymentRequest request,
+            HttpServletRequest httpServletRequest) {
+
+        String email = (String) httpServletRequest
+                .getAttribute("deployxUserEmail");
+
+        if (email == null || email.isBlank()) {
+            throw new ResponseStatusException(
+                    HttpStatus.UNAUTHORIZED,
+                    "User not found"
+            );
+        }
+
+        return deploymentService.createDeployment(email , request);
+    }
+
 }

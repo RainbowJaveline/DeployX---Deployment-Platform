@@ -7,6 +7,11 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
+import com.deployX.backend.Repository.DeploymentRepository;
+import com.deployX.backend.modules.Deployment;
+import com.deployX.backend.Enum.DeploymentStatus;
+import java.util.UUID;
+import com.deployX.backend.io.DeploymentCreationResponse;
 
 import java.net.URI;
 import java.util.LinkedHashMap;
@@ -20,6 +25,7 @@ public class DeploymentService {
     private final UserRepository userRepository;
     private final GithubService githubService;
     private final BuildConfigurationService buildConfigurationService;
+    private final DeploymentRepository deploymentRepository;
 
 
     public deploymentResponse analyzeRepository(
@@ -895,6 +901,65 @@ public class DeploymentService {
                 : "UNKNOWN";
     }
 
+
+    public DeploymentCreationResponse createDeployment(
+            String email,
+            deploymentRequest request) {
+
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() ->
+                        new ResponseStatusException(
+                                HttpStatus.UNAUTHORIZED,
+                                "User not found"
+                        )
+                );
+
+        if (request == null) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Deployment request is required"
+            );
+        }
+
+        // Analyze and validate the repository using existing logic.
+        deploymentResponse analysis =
+                analyzeRepository(email, request);
+
+        String repositoryUrl;
+
+        if (request.getSource() != null
+                && request.getSource().trim().equalsIgnoreCase("URL")) {
+
+            repositoryUrl = request.getRepositoryUrl().trim();
+
+        } else {
+            repositoryUrl = "https://github.com/"
+                    + analysis.getOwner()
+                    + "/"
+                    + analysis.getRepository();
+        }
+
+        Deployment deployment = Deployment.builder()
+                .deploymentId(java.util.UUID.randomUUID())
+                .repositoryOwner(analysis.getOwner())
+                .repositoryName(analysis.getRepository())
+                .repositoryUrl(repositoryUrl)
+                .branch(analysis.getBranch())
+                .projectType(analysis.getProjectType())
+                .componentPath(request.getComponentPath())
+                .status(DeploymentStatus.CREATED)
+                .user(user)
+                .build();
+
+        Deployment savedDeployment =
+                deploymentRepository.save(deployment);
+
+        return DeploymentCreationResponse.builder()
+                .deploymentId(savedDeployment.getDeploymentId())
+                .status(savedDeployment.getStatus().name())
+                .createdAt(savedDeployment.getCreatedAt())
+                .build();
+    }
 
     // =========================================================
     // INTERNAL RECORD
