@@ -19,7 +19,7 @@ public class DeploymentService {
 
     private final UserRepository userRepository;
     private final GithubService githubService;
-
+    private final BuildConfigurationService buildConfigurationService;
 
 
     public deploymentResponse analyzeRepository(
@@ -506,6 +506,9 @@ public class DeploymentService {
             buildTool = "CARGO";
         }
 
+        BuildConfiguration buildConfiguration = buildConfigurationService
+                .getBuildConfiguration(type,buildTool);
+
         String name = path.isBlank()
                 ? "root"
                 : path;
@@ -515,6 +518,7 @@ public class DeploymentService {
                 .path(path)
                 .type(type)
                 .buildTool(buildTool)
+                .buildConfiguration(buildConfiguration)
                 .build();
     }
 
@@ -911,4 +915,6 @@ public class DeploymentService {
         private boolean hasGo;
         private boolean hasRust;
     }
+
+
 }

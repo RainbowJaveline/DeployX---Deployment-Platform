@@ -1,11 +1,14 @@
+
 package com.deployX.backend.modules;
 
+import com.deployX.backend.Enum.DeploymentStatus;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
-import java.security.Timestamp;
+import java.time.LocalDateTime;
+import java.util.UUID;
 
 @Entity
 @Table(name = "deployments")
@@ -19,6 +22,10 @@ public class Deployment {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Builder.Default
+    @Column(nullable = false, unique = true, updatable = false)
+    private UUID deploymentId = UUID.randomUUID();
+
     private String repositoryOwner;
 
     private String repositoryName;
@@ -29,7 +36,20 @@ public class Deployment {
 
     private String projectType;
 
-    private String status;
+    private String componentPath;
+
+    private String commitHash;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    @Builder.Default
+    private DeploymentStatus status = DeploymentStatus.CREATED;
+
+    private String failureSummary;
+
+    private LocalDateTime startedAt;
+
+    private LocalDateTime finishedAt;
 
     @ManyToOne
     @JoinColumn(name = "user_id")
@@ -37,8 +57,8 @@ public class Deployment {
 
     @CreationTimestamp
     @Column(updatable = false)
-    private Timestamp createdAt;
+    private LocalDateTime createdAt;
 
     @UpdateTimestamp
-    private Timestamp updatedAt;
+    private LocalDateTime updatedAt;
 }

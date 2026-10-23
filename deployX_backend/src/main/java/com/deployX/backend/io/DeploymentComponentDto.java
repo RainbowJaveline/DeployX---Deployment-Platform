@@ -18,6 +18,5 @@ public class DeploymentComponentDto {
 
     private String buildTool;
 
-    private String buildCommand;
-    private String outputDirectory;
+    private BuildConfiguration buildConfiguration;
 }
