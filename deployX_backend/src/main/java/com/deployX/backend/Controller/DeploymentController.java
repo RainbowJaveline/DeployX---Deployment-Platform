@@ -34,7 +34,7 @@ public class DeploymentController {
     @PostMapping("/create")
     @ResponseStatus(HttpStatus.CREATED)
     public DeploymentCreationResponse createDeployment(
-            deploymentRequest request,
+            @RequestBody deploymentRequest request,
             HttpServletRequest httpServletRequest) {
 
         String email = (String) httpServletRequest

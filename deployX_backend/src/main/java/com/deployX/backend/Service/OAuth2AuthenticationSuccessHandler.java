@@ -16,6 +16,7 @@ import org.springframework.security.oauth2.client.authentication.OAuth2Authentic
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
 import org.springframework.stereotype.Component;
+import org.springframework.beans.factory.annotation.Value;
 
 import java.io.IOException;
 import java.time.Duration;
@@ -32,6 +33,9 @@ public class OAuth2AuthenticationSuccessHandler
 
     private final OAuth2AuthorizedClientService authorizedClientService;
 
+    @Value("${DEPLOYX_FRONTEND_URL:http://localhost:5173}")
+    private String frontendUrl;
+
     @Override
     public void onAuthenticationSuccess(
             HttpServletRequest request,
@@ -39,29 +43,7 @@ public class OAuth2AuthenticationSuccessHandler
             Authentication authentication)
             throws IOException, ServletException {
 
-        System.out.println("========================================");
-        System.out.println("OAUTH SUCCESS HANDLER STARTED");
-
         HttpSession debugSession = request.getSession(false);
-
-        System.out.println(
-                "SESSION ID = " +
-                        (debugSession != null ? debugSession.getId() : "NULL")
-        );
-
-        System.out.println(
-                "CONNECT USER ID = " +
-                        (debugSession != null
-                                ? debugSession.getAttribute("github_connect_user_id")
-                                : "NULL")
-        );
-
-        System.out.println(
-                "AUTHENTICATION NAME = " +
-                        authentication.getName()
-        );
-
-        System.out.println("========================================");
         OAuth2User oauth2User =
                 (OAuth2User) authentication.getPrincipal();
 
@@ -115,30 +97,8 @@ public class OAuth2AuthenticationSuccessHandler
                                     githubProviderId
                             );
 
-            System.out.println("========== GITHUB USER CHECK ==========");
-            System.out.println(
-                    "Current DeployX User ID = " +
-                            currentUser.getId()
-            );
-
-            System.out.println(
-                    "GitHub Provider ID = " +
-                            githubProviderId
-            );
-
-            System.out.println(
-                    "Existing GitHub User Present = " +
-                            existingGithubUser.isPresent()
-            );
-
             if (existingGithubUser.isPresent()) {
-                System.out.println(
-                        "Existing GitHub User ID = " +
-                                existingGithubUser.get().getId()
-                );
             }
-
-            System.out.println("=======================================");
 
 
 
@@ -155,7 +115,7 @@ public class OAuth2AuthenticationSuccessHandler
                 );
 
                 response.sendRedirect(
-                        "http://localhost:5173/new-deployment?github=already-connected"
+                        frontendUrl + "/new-deployment?github=already-connected"
                 );
 
                 return;
@@ -185,38 +145,8 @@ public class OAuth2AuthenticationSuccessHandler
                                             .getName()
                             );
 
-            System.out.println("========== GITHUB CONNECT DEBUG ==========");
-
-            System.out.println(
-                    "CONNECT USER ID = " +
-                            (session != null
-                                    ? session.getAttribute("github_connect_user_id")
-                                    : null)
-            );
-
-            System.out.println(
-                    "OAUTH REGISTRATION ID = " +
-                            oauth2Authentication.getAuthorizedClientRegistrationId()
-            );
-
-            System.out.println(
-                    "OAUTH PRINCIPAL NAME = " +
-                            oauth2Authentication.getName()
-            );
-
-            System.out.println(
-                    "AUTHORIZED CLIENT = " +
-                            authorizedClient
-            );
-
             if (authorizedClient != null) {
-                System.out.println(
-                        "ACCESS TOKEN EXISTS = " +
-                                (authorizedClient.getAccessToken() != null)
-                );
             }
-
-            System.out.println("==========================================");
 
             if (authorizedClient == null) {
                 throw new RuntimeException(
@@ -247,25 +177,6 @@ public class OAuth2AuthenticationSuccessHandler
 
 
 // DEBUG: Check values before saving to database
-            System.out.println("========== BEFORE SAVE ==========");
-            System.out.println("User ID = " + currentUser.getId());
-            System.out.println("Email = " + currentUser.getEmail());
-            System.out.println(
-                    "GitHub Provider ID = " +
-                            currentUser.getGithubProviderId()
-            );
-            System.out.println(
-                    "GitHub Username = " +
-                            currentUser.getGithubUsername()
-            );
-            System.out.println(
-                    "GitHub Access Token exists = " +
-                            (
-                                    currentUser.getGithubAccessToken() != null &&
-                                            !currentUser.getGithubAccessToken().isBlank()
-                            )
-            );
-            System.out.println("================================");
 
             userRepository.save(currentUser);
 
@@ -316,7 +227,7 @@ public class OAuth2AuthenticationSuccessHandler
              * New Deployment page.
              */
             response.sendRedirect(
-                    "http://localhost:5173/new-deployment?github=connected"
+                    frontendUrl + "/new-deployment?github=connected"
             );
 
             return;
@@ -383,7 +294,7 @@ public class OAuth2AuthenticationSuccessHandler
          * Normal GitHub login goes to dashboard.
          */
         response.sendRedirect(
-                "http://localhost:5173/dashboard"
+                frontendUrl + "/dashboard"
         );
     }
 }

@@ -276,17 +276,8 @@ public class DeploymentService {
         // 7. Debug repository tree
         // ---------------------------------------
 
-        System.out.println("===== GITHUB TREE =====");
-
         for (GithubTreeItemDto item : content) {
-
-            System.out.println(
-                    "Path: " + item.getPath() +
-                            " | Type: " + item.getType()
-            );
         }
-
-        System.out.println("===========================");
 
 
         // ---------------------------------------

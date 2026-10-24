@@ -68,14 +68,6 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
             email = getGitHubEmail(userRequest);
         }
 
-        System.out.println("=================================");
-        System.out.println("Provider: " + provider);
-        System.out.println("Provider ID: " + providerId);
-        System.out.println("Login: " + login);
-        System.out.println("Name: " + name);
-        System.out.println("Email: " + email);
-        System.out.println("=================================");
-
         if (email == null || email.isBlank()) {
             throw new OAuth2AuthenticationException(
                     "GitHub account does not have an accessible email address"

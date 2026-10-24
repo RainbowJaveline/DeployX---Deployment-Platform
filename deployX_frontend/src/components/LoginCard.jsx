@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { API_BASE_URL, apiFetch } from '../utils/api'
 import { Link, useNavigate } from 'react-router-dom'
 import { getStoredName, setStoredName, nameFromEmail } from '../utils/user'
 import './LoginCard.css'
@@ -22,8 +23,8 @@ export default function LoginCard() {
     setIsSubmitting(true)
     // Replace with a real authentication call.
     try {
-    const response = await fetch(
-        'http://localhost:8082/api/v1.0/login',
+    const response = await apiFetch(
+        '/login',
         {
             method : 'POST',
             headers : {
@@ -58,7 +59,7 @@ export default function LoginCard() {
 
   function handleGithubSignIn() {
     // this is the oauth2 redirect to the spring backend
-    window.location.href = 'http://localhost:8082/api/v1.0/oauth2/authorization/github'
+    window.location.href = `${API_BASE_URL}/oauth2/authorization/github`
 
   }
 

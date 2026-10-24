@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import Sidebar from "../components/dashboard/Sidebar";
 import Topbar from "../components/dashboard/Topbar";
 import { getStoredName, firstNameOf } from "../utils/user";
+import { API_BASE_URL, apiFetch } from "../utils/api";
 import { useEffect, useState } from "react";
 import "./NewDeployment.css";
 
@@ -35,8 +36,8 @@ function NewDeployment() {
       setLoadingRepositories(true);
       setRepositoryError("");
 
-      const response = await fetch(
-        "http://localhost:8082/api/v1.0/github/repos",
+      const response = await apiFetch(
+        "/github/repos",
         {
           method: "GET",
           credentials: "include",
@@ -168,7 +169,7 @@ function NewDeployment() {
                 className="new-deployment__github-button"
                 onClick={() => {
                   window.location.href =
-                    "http://localhost:8082/api/v1.0/github/connection";
+                    `${API_BASE_URL}/github/connection`;
                 }}
               >
                 <svg

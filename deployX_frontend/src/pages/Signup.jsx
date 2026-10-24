@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { apiFetch } from '../utils/api'
 import { Link, useNavigate } from 'react-router-dom'
 import HeroPanel from '../components/HeroPanel'
 import StarField from '../components/StarField'
@@ -34,8 +35,8 @@ export default function Signup() {
     setIsSubmitting(true)
 
     try {
-      const response = await fetch(
-        'http://localhost:8082/api/v1.0/register',
+      const response = await apiFetch(
+        '/register',
         {
           method: 'POST',
           headers: {

@@ -17,6 +17,8 @@ import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 import java.util.List;
+import io.jsonwebtoken.JwtException;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 
 @Component
 @RequiredArgsConstructor
@@ -58,15 +60,13 @@ public class JwtFilter extends OncePerRequestFilter {
 
         //3. Validate the token and set the security context
         if (jwt != null) {
+            try {
+                email = jwtUtil.extractEmail(jwt);
+                if (email != null) {
+                    UserDetails userDetails =
+                            appUserDetailsService.loadUserByUsername(email);
 
-            email = jwtUtil.extractEmail(jwt);
-
-            if (email != null) {
-
-                UserDetails userDetails =
-                        appUserDetailsService.loadUserByUsername(email);
-
-                if (jwtUtil.ValidateToken(jwt, userDetails)) {
+                    if (jwtUtil.ValidateToken(jwt, userDetails)) {
 
                     // Store the DeployX user identity for this request
                     request.setAttribute("deployxUserEmail", email);
@@ -90,18 +90,12 @@ public class JwtFilter extends OncePerRequestFilter {
                         SecurityContextHolder.getContext()
                                 .setAuthentication(authentication);
                     }
+                    }
                 }
+            } catch (JwtException | IllegalArgumentException | UsernameNotFoundException ignored) {
+                // Invalid, expired, or orphaned tokens remain unauthenticated.
             }
         }
-        System.out.println(
-                "FINAL AUTHENTICATION: " +
-                        SecurityContextHolder.getContext().getAuthentication()
-        );
-
-        System.out.println(
-                "DEPLOYX EMAIL ATTRIBUTE: " +
-                        request.getAttribute("deployxUserEmail")
-        );
         filterChain.doFilter(request, response);
     }
 }

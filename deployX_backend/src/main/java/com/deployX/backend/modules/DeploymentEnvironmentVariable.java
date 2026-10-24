@@ -38,7 +38,7 @@ public class DeploymentEnvironmentVariable {
     @Column(name = "variable_name", nullable = false, length = 255)
     private String name;
 
-    @Column(name = "encrypted_value", nullable = false, length = 12000)
+    @Column(name = "encrypted_value", nullable = false, columnDefinition = "TEXT")
     private String encryptedValue;
 
     @Builder.Default

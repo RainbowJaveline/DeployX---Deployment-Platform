@@ -68,11 +68,6 @@ public class ProfileImpl implements ProfileService {
                 .orElseThrow(() ->
                         new RuntimeException("User not found with email: " + email)
                 );
-        System.out.println("Email: " + email);
-        System.out.println("Received OTP: " + otp);
-        System.out.println("Stored OTP: " + user.getResetOtp());
-        System.out.println("OTP Expiry: " + user.getResetOtpExpireAt());
-        System.out.println("Current Time: " + System.currentTimeMillis());
         if(user.getResetOtp() == null || !user.getResetOtp().equals(otp)){
             throw new RuntimeException("Invalid OTP" + otp + "\n\n Please Try again");
         }
