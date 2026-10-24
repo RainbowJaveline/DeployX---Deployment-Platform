@@ -101,17 +101,14 @@
 
   border-radius: inherit;
 
-  background: linear-gradient(
-    90deg,
-    #6255e8,
-    #8983ff
-  );
+  background: #22ce98;
 
   transition: width 0.7s ease;
 }
 
 .analysis-progress__bar--complete {
   background: #22ce98;
+  box-shadow: 0 0 12px rgba(34, 206, 152, 0.45);
 }
 
 .analysis-steps {
