@@ -6,12 +6,20 @@ import com.deployX.backend.modules.User;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 import com.deployX.backend.Repository.DeploymentRepository;
 import com.deployX.backend.modules.Deployment;
 import com.deployX.backend.Enum.DeploymentStatus;
 import java.util.UUID;
 import com.deployX.backend.io.DeploymentCreationResponse;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 import java.net.URI;
 import java.util.LinkedHashMap;
@@ -26,6 +34,8 @@ public class DeploymentService {
     private final GithubService githubService;
     private final BuildConfigurationService buildConfigurationService;
     private final DeploymentRepository deploymentRepository;
+    private final EnvironmentVariableService environmentVariableService;
+//    private final ObjectMapper objectMapper;
 
 
     public deploymentResponse analyzeRepository(
@@ -190,7 +200,10 @@ public class DeploymentService {
         return buildAnalysis(
                 repository,
                 branch,
-                contents
+                contents,
+                request.getOwner(),
+                request.getRepository(),
+                accessToken
         );
     }
 
@@ -211,6 +224,12 @@ public class DeploymentService {
         String accessToken =
                 user.getGithubAccessToken();
 
+        if (accessToken == null || accessToken.isBlank()) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "GitHub account is not connected"
+            );
+        }
 
         // ---------------------------------------
         // 2. Validate URL
@@ -276,10 +295,6 @@ public class DeploymentService {
         // 7. Debug repository tree
         // ---------------------------------------
 
-        for (GithubTreeItemDto item : content) {
-        }
-
-
         // ---------------------------------------
         // 8. Build analysis
         // ---------------------------------------
@@ -287,7 +302,10 @@ public class DeploymentService {
         return buildAnalysis(
                 repository,
                 branch,
-                content
+                content,
+                target.owner(),
+                target.repository(),
+                accessToken
         );
     }
 
@@ -298,8 +316,20 @@ public class DeploymentService {
     private deploymentResponse buildAnalysis(
             GithubRepositoryDTO repository,
             String branch,
-            List<GithubTreeItemDto> content
+            List<GithubTreeItemDto> content,
+            String owner,
+            String repositoryName,
+            String accessToken
     ) {
+
+        Map<String, Map<String, String>> scriptsByPath =
+                extractPackageScripts(
+                        owner,
+                        repositoryName,
+                        branch,
+                        accessToken,
+                        content
+                );
 
         String language =
                 repository.getLanguage();
@@ -309,44 +339,38 @@ public class DeploymentService {
 
             language = "UNKNOWN";
         }
-        boolean Dockerfile = false;
-        boolean json = false;
-        boolean pom = false;
-        boolean requirements = false;
-        for(GithubTreeItemDto contentDto : content){
-            if (contentDto.getPath().endsWith("/pom.xml")
-                    || contentDto.getPath().equals("pom.xml")) {
-                pom = true;
-            }
-            if (contentDto.getPath().endsWith("/package.json")
-                    || contentDto.getPath().equals("package.json")) {
-                json = true;
-            }
+        boolean dockerfilePresent = false;
+        boolean packageJsonPresent = false;
+        boolean pomXmlPresent = false;
+        boolean requirementsTxtPresent = false;
 
-            if (contentDto.getPath().endsWith("/Dockerfile")
-                    || contentDto.getPath().equals("Dockerfile")) {
-                Dockerfile = true;
-            }
+        if (content != null) {
+            for (GithubTreeItemDto item : content) {
+                if (item == null || item.getPath() == null) {
+                    continue;
+                }
 
-            if (contentDto.getPath().endsWith("/requirements.txt")
-                    || contentDto.getPath().equals("requirements.txt")) {
-                requirements = true;
+                String path = item.getPath().replace('\\', '/');
+
+                if (path.equals("Dockerfile") || path.endsWith("/Dockerfile")) {
+                    dockerfilePresent = true;
+                }
+
+                if (path.equals("package.json") || path.endsWith("/package.json")) {
+                    packageJsonPresent = true;
+                }
+
+                if (path.equals("pom.xml") || path.endsWith("/pom.xml")) {
+                    pomXmlPresent = true;
+                }
+
+                if (path.equals("requirements.txt")
+                        || path.endsWith("/requirements.txt")) {
+                    requirementsTxtPresent = true;
+                }
             }
         }
 
-        /*
-         * At this stage we are only using the information
-         * returned by GitHub repository metadata.
-         *
-         * We will later inspect the repository files
-         * to detect:
-         *
-         * - pom.xml
-         * - package.json
-         * - requirements.txt
-         * - Dockerfile
-         * - etc.
-         */
 
         return deploymentResponse.builder()
                 .owner(extractOwner(repository.getFullName()))
@@ -354,111 +378,131 @@ public class DeploymentService {
                 .branch(branch)
                 .language(language)
                 .projectType(detectProjectType(language,content))
-                .components(detectComponents(content))
-                .dockerfilePresent(Dockerfile)
-                .packageJsonPresent(json)
-                .pomXmlPresent(pom)
-                .requirementsTxtPresent(requirements)
+                .components(detectComponents(content, scriptsByPath))
+                .dockerfilePresent(dockerfilePresent)
+                .packageJsonPresent(packageJsonPresent)
+                .pomXmlPresent(pomXmlPresent)
+                .requirementsTxtPresent(requirementsTxtPresent)
                 .build();
     }
 
 
     private List<DeploymentComponentDto> detectComponents(
-            List<GithubTreeItemDto> content
+            List<GithubTreeItemDto> content,
+             Map<String, Map<String, String>> scriptsByPath
     ) {
-        Map<String, ComponentInfo> components =
-                new LinkedHashMap<>();
+        Map<String, ComponentInfo> components = new LinkedHashMap<>();
+
+        if (content == null || content.isEmpty()) {
+            return List.of();
+        }
 
         for (GithubTreeItemDto item : content) {
-
-            String path = item.getPath();
-
-            if (path == null || path.isBlank()) {
+            if (item == null) {
                 continue;
             }
 
-            String fileName = path.substring(
-                    path.lastIndexOf("/") + 1
+            String filePath = item.getPath();
+
+            if (filePath == null || filePath.isBlank()) {
+                continue;
+            }
+
+            // Normalize separators to make path handling consistent.
+            filePath = filePath.replace('\\', '/');
+
+            // Remove leading and trailing separators.
+            filePath = filePath.replaceAll("^/+|/+$", "");
+
+            if (filePath.isBlank()) {
+                continue;
+            }
+
+            int lastSlash = filePath.lastIndexOf('/');
+            String fileName = filePath.substring(lastSlash + 1);
+
+            // Use the manifest's parent directory as the component path.
+            String directory = lastSlash < 0
+                    ? ""
+                    : filePath.substring(0, lastSlash);
+
+            // Ignore files that do not define a component.
+            boolean recognized = switch (fileName) {
+                case "pom.xml",
+                     "build.gradle",
+                     "build.gradle.kts",
+                     "package.json",
+                     "requirements.txt",
+                     "pyproject.toml",
+                     "go.mod",
+                     "Cargo.toml",
+                     "Dockerfile",
+                     "mvnw",
+                     "gradlew" -> true;
+
+                default -> false;
+            };
+
+            if (!recognized) {
+                continue;
+            }
+
+            // Retrieve the existing component or create it.
+            ComponentInfo info = components.computeIfAbsent(
+                    directory,
+                    key -> new ComponentInfo()
             );
 
-            String directory = getTopLevelDirectory(path);
-
+            // Record the detected manifest or build file.
             switch (fileName) {
+                case "pom.xml" -> info.hasMaven = true;
 
-                case "pom.xml" -> {
-                    ComponentInfo component =
-                            components.computeIfAbsent(
-                                    directory,
-                                    key -> new ComponentInfo()
-                            );
+                case "build.gradle" -> info.hasGradle = true;
 
-                    component.hasMaven = true;
+                case "build.gradle.kts" -> {
+                    info.hasGradle = true;
+                    info.hasGradleKotlin = true;
                 }
 
-                case "build.gradle",
-                     "build.gradle.kts" -> {
-                    ComponentInfo component =
-                            components.computeIfAbsent(
-                                    directory,
-                                    key -> new ComponentInfo()
-                            );
+                case "package.json" -> info.hasNode = true;
 
-                    component.hasGradle = true;
+                case "requirements.txt" -> {
+                    info.hasPython = true;
+                    info.hasRequirements = true;
                 }
 
-                case "package.json" -> {
-                    ComponentInfo component =
-                            components.computeIfAbsent(
-                                    directory,
-                                    key -> new ComponentInfo()
-                            );
-
-                    component.hasNode = true;
+                case "pyproject.toml" -> {
+                    info.hasPython = true;
+                    info.hasPyProject = true;
                 }
 
-                case "requirements.txt",
-                     "pyproject.toml" -> {
-                    ComponentInfo component =
-                            components.computeIfAbsent(
-                                    directory,
-                                    key -> new ComponentInfo()
-                            );
+                case "go.mod" -> info.hasGo = true;
 
-                    component.hasPython = true;
-                }
+                case "Cargo.toml" -> info.hasRust = true;
 
-                case "go.mod" -> {
-                    ComponentInfo component =
-                            components.computeIfAbsent(
-                                    directory,
-                                    key -> new ComponentInfo()
-                            );
+                case "Dockerfile" -> info.hasDockerfile = true;
 
-                    component.hasGo = true;
-                }
+                case "mvnw" -> info.hasMavenWrapper = true;
 
-                case "Cargo.toml" -> {
-                    ComponentInfo component =
-                            components.computeIfAbsent(
-                                    directory,
-                                    key -> new ComponentInfo()
-                            );
-
-                    component.hasRust = true;
-                }
+                case "gradlew" -> info.hasGradleWrapper = true;
             }
         }
 
         return components.entrySet()
                 .stream()
-                .map(entry ->
-                        buildComponent(
+                .map(entry -> buildComponent(
+                        entry.getKey(),
+                        entry.getValue(),
+                        scriptsByPath.getOrDefault(
                                 entry.getKey(),
-                                entry.getValue()
-                        )
-                )
+                                Map.of()
+                        ),
+                        content
+                ))
                 .toList();
     }
+
+
 
     private String getTopLevelDirectory(String path) {
 
@@ -471,44 +515,74 @@ public class DeploymentService {
         return path.substring(0, slashIndex);
     }
 
+
     private DeploymentComponentDto buildComponent(
             String path,
-            ComponentInfo info
+            ComponentInfo info,
+            Map<String, String> packageScripts,
+            List<GithubTreeItemDto> content
     ) {
         String type = "UNKNOWN";
         String buildTool = "UNKNOWN";
 
-        if (info.hasMaven) {
+        // Determine the component type and build tool.
+        if (info.hasMaven && info.hasGradle) {
+            // Both Java build systems exist in this directory.
+            // Do not silently choose one.
+            type = "JAVA";
+            buildTool = "AMBIGUOUS";
+        } else if (info.hasMaven) {
             type = "JAVA";
             buildTool = "MAVEN";
-        }
-        else if (info.hasGradle) {
+        } else if (info.hasGradle) {
             type = "JAVA";
             buildTool = "GRADLE";
-        }
-        else if (info.hasNode) {
+        } else if (info.hasNode) {
             type = "NODE";
-            buildTool = "NPM";
-        }
-        else if (info.hasPython) {
+            buildTool = detectNodePackageManager(path, content);
+        } else if (info.hasPython) {
             type = "PYTHON";
             buildTool = "PYTHON";
-        }
-        else if (info.hasGo) {
+        } else if (info.hasGo) {
             type = "GO";
             buildTool = "GO_MODULES";
-        }
-        else if (info.hasRust) {
+        } else if (info.hasRust) {
             type = "RUST";
             buildTool = "CARGO";
         }
 
-        BuildConfiguration buildConfiguration = buildConfigurationService
-                .getBuildConfiguration(type,buildTool);
+        Map<String, Boolean> manifestFiles = new LinkedHashMap<>();
 
-        String name = path.isBlank()
-                ? "root"
-                : path;
+        manifestFiles.put("pom.xml", info.hasMaven);
+        manifestFiles.put("build.gradle",
+                info.hasGradle && !info.hasGradleKotlin);
+        manifestFiles.put("build.gradle.kts", info.hasGradleKotlin);
+        manifestFiles.put("package.json", info.hasNode);
+        manifestFiles.put("requirements.txt", info.hasRequirements);
+        manifestFiles.put("pyproject.toml", info.hasPyProject);
+        manifestFiles.put("go.mod", info.hasGo);
+        manifestFiles.put("Cargo.toml", info.hasRust);
+        manifestFiles.put("Dockerfile", info.hasDockerfile);
+        manifestFiles.put("mvnw", info.hasMavenWrapper);
+        manifestFiles.put("gradlew", info.hasGradleWrapper);
+
+        BuildConfiguration buildConfiguration;
+
+        if ("AMBIGUOUS".equals(buildTool)) {
+            buildConfiguration = BuildConfiguration.builder()
+                    .buildCommand(null)
+                    .outputDirectory(null)
+                    .build();
+        } else {
+            buildConfiguration = buildConfigurationService.getBuildConfiguration(
+                    type,
+                    buildTool,
+                    manifestFiles,
+                    packageScripts
+            );
+        }
+
+        String name = path.isBlank() ? "root" : path;
 
         return DeploymentComponentDto.builder()
                 .name(name)
@@ -518,6 +592,7 @@ public class DeploymentService {
                 .buildConfiguration(buildConfiguration)
                 .build();
     }
+
 
     // =========================================================
     // PROJECT TYPE DETECTION
@@ -893,9 +968,11 @@ public class DeploymentService {
     }
 
 
+    @Transactional
     public DeploymentCreationResponse createDeployment(
             String email,
-            deploymentRequest request) {
+            deploymentRequest request
+    ) {
 
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() ->
@@ -912,10 +989,11 @@ public class DeploymentService {
             );
         }
 
-        // Analyze and validate the repository using existing logic.
+        // Step 1: Analyze and validate the repository.
         deploymentResponse analysis =
                 analyzeRepository(email, request);
 
+        // Step 2: Determine the repository URL.
         String repositoryUrl;
 
         if (request.getSource() != null
@@ -930,8 +1008,9 @@ public class DeploymentService {
                     + analysis.getRepository();
         }
 
+        // Step 3: Create the deployment record.
         Deployment deployment = Deployment.builder()
-                .deploymentId(java.util.UUID.randomUUID())
+                .deploymentId(UUID.randomUUID())
                 .repositoryOwner(analysis.getOwner())
                 .repositoryName(analysis.getRepository())
                 .repositoryUrl(repositoryUrl)
@@ -945,6 +1024,18 @@ public class DeploymentService {
         Deployment savedDeployment =
                 deploymentRepository.save(deployment);
 
+        // Step 4: Save environment variables if supplied.
+        if (request.getEnvironmentVariables() != null
+                && !request.getEnvironmentVariables().isEmpty()) {
+
+            environmentVariableService.replaceVariable(
+                    email,
+                    savedDeployment.getDeploymentId(),
+                    request.getEnvironmentVariables()
+            );
+        }
+
+        // Step 5: Return the deployment creation response.
         return DeploymentCreationResponse.builder()
                 .deploymentId(savedDeployment.getDeploymentId())
                 .status(savedDeployment.getStatus().name())
@@ -966,11 +1057,150 @@ public class DeploymentService {
 
         private boolean hasMaven;
         private boolean hasGradle;
+        private boolean hasGradleKotlin;
         private boolean hasNode;
         private boolean hasPython;
+        private boolean hasRequirements;
+        private boolean hasPyProject;
         private boolean hasGo;
         private boolean hasRust;
+        private boolean hasDockerfile;
+        private boolean hasMavenWrapper;
+        private boolean hasGradleWrapper;
     }
 
+    private Map<String, Map<String, String>> extractPackageScripts(
+            String owner,
+            String repository,
+            String branch,
+            String accessToken,
+            List<GithubTreeItemDto> content
+    ) {
+        Map<String, Map<String, String>> scriptsByPath =
+                new LinkedHashMap<>();
+
+        if (content == null || content.isEmpty()) {
+            return scriptsByPath;
+        }
+
+        for (GithubTreeItemDto item : content) {
+            if (item == null || item.getPath() == null) {
+                continue;
+            }
+
+            String filePath = item.getPath()
+                    .replace('\\', '/')
+                    .replaceAll("^/+|/+$", "");
+
+            if (filePath.isBlank()) {
+                continue;
+            }
+
+            String fileName = filePath.substring(
+                    filePath.lastIndexOf('/') + 1
+            );
+
+            if (!"package.json".equals(fileName)) {
+                continue;
+            }
+
+            String directory = filePath.contains("/")
+                    ? filePath.substring(
+                    0,
+                    filePath.lastIndexOf('/')
+            )
+                    : "";
+
+            String fileContent = githubService.getRepositoryFileContent(
+                    owner,
+                    repository,
+                    branch,
+                    filePath,
+                    accessToken
+            );
+
+            try {
+                JsonNode root = new ObjectMapper().readTree(fileContent);
+                JsonNode scriptsNode = root.get("scripts");
+
+                Map<String, String> scripts = new LinkedHashMap<>();
+
+                if (scriptsNode != null && scriptsNode.isObject()) {
+                    scriptsNode.fields().forEachRemaining(entry -> {
+                        if (entry.getValue().isTextual()) {
+                            scripts.put(
+                                    entry.getKey(),
+                                    entry.getValue().asText()
+                            );
+                        }
+                    });
+                }
+
+                scriptsByPath.put(directory, scripts);
+
+            } catch (Exception e) {
+                throw new ResponseStatusException(
+                        HttpStatus.BAD_GATEWAY,
+                        "Unable to parse package.json: " + filePath,
+                        e
+                );
+            }
+        }
+
+        return scriptsByPath;
+    }
+
+
+    private String detectNodePackageManager(
+            String directory,
+            List<GithubTreeItemDto> content
+    ) {
+        boolean hasNpmLock = false;
+        boolean hasYarnLock = false;
+        boolean hasPnpmLock = false;
+
+        String normalizedDirectory = directory == null ? "" : directory;
+
+        if (content == null) {
+            return "NPM";
+        }
+
+        for (GithubTreeItemDto item : content) {
+            if (item == null || item.getPath() == null) {
+                continue;
+            }
+
+            String path = item.getPath()
+                    .replace('\\', '/')
+                    .replaceAll("^/+|/+$", "");
+
+            int lastSlash = path.lastIndexOf('/');
+            String fileName = path.substring(lastSlash + 1);
+            String parentDirectory = lastSlash < 0
+                    ? ""
+                    : path.substring(0, lastSlash);
+
+            if (!parentDirectory.equals(normalizedDirectory)) {
+                continue;
+            }
+
+            switch (fileName) {
+                case "package-lock.json" -> hasNpmLock = true;
+                case "yarn.lock" -> hasYarnLock = true;
+                case "pnpm-lock.yaml" -> hasPnpmLock = true;
+            }
+        }
+
+        // Prefer an explicit package-manager lockfile.
+        if (hasPnpmLock) {
+            return "PNPM";
+        }
+
+        if (hasYarnLock) {
+            return "YARN";
+        }
+
+        return "NPM";
+    }
 
 }

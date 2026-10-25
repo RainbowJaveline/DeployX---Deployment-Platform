@@ -39,18 +39,38 @@ public class EnvironmentVariableService {
         }
 
         Set<String> names = new HashSet<>();
-        for (EnvironmentVariableRequest variable : variables){
-            if(variable == null) {
+
+        for (EnvironmentVariableRequest variable : variables) {
+
+            if (variable == null) {
                 throw new ResponseStatusException(
-                HttpStatus.BAD_REQUEST, "Environment variables list cannot be null"
+                        HttpStatus.BAD_REQUEST,
+                        "Environment variable cannot be null"
                 );
             }
 
-            if(!names.add(variable.getName())){
+            String name = variable.getName();
+
+            if (name == null
+                    || !name.matches("[A-Za-z_][A-Za-z0-9_]*")) {
+
                 throw new ResponseStatusException(
                         HttpStatus.BAD_REQUEST,
-                        "Duplicate environment variable name: "
-                                + variable.getName()
+                        "Invalid environment variable name"
+                );
+            }
+
+            if (variable.getValue() == null) {
+                throw new ResponseStatusException(
+                        HttpStatus.BAD_REQUEST,
+                        "Environment variable value cannot be null: " + name
+                );
+            }
+
+            if (!names.add(name)) {
+                throw new ResponseStatusException(
+                        HttpStatus.BAD_REQUEST,
+                        "Duplicate environment variable name: " + name
                 );
             }
         }

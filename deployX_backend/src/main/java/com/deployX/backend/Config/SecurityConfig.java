@@ -12,6 +12,7 @@ import org.springframework.security.authentication.ProviderManager;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -55,9 +56,15 @@ public class SecurityConfig {
                         .csrfTokenRequestHandler(new SpaCsrfTokenRequestHandler()))
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .authorizeHttpRequests(request -> request
-                        .requestMatchers("/login","/register","/logout","/send-resetPassword-otp","/reset-Password","/csrf","/oauth2/**","/login/oauth2/**","/error").permitAll().anyRequest().authenticated())
+                        .requestMatchers("/login","/register","/logout","/send-resetPassword-otp","/reset-Password","/csrf","/oauth2/**","/login/oauth2/**","/error",
+                                // Swagger UI and OpenAPI documentation
+                                "/swagger-ui.html",
+                                "/swagger-ui/**",
+                                "/v3/api-docs",
+                                "/v3/api-docs/**"
+                        ).permitAll().anyRequest().authenticated())
                 .sessionManagement(session-> session.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED))
-                .logout(logout->logout.disable())
+                .logout(AbstractHttpConfigurer::disable)
                 .oauth2Login(c -> c
                         .userInfoEndpoint(userInfo ->
                                 userInfo.userService(customOAuth2UserService)

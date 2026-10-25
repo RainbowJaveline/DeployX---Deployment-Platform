@@ -6,6 +6,11 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.server.ResponseStatusException;
+
+import java.nio.charset.StandardCharsets;
+import java.util.Base64;
 
 import java.util.Arrays;
 import java.util.List;
@@ -148,5 +153,115 @@ public class GithubService {
 
 
         return Arrays.asList(repositories);
+    }
+
+    public String getRepositoryFileContent(
+            String owner,
+            String repository,
+            String branch,
+            String filePath,
+            String accessToken
+    ) {
+        if (owner == null || owner.isBlank()
+                || repository == null || repository.isBlank()
+                || branch == null || branch.isBlank()
+                || filePath == null || filePath.isBlank()) {
+
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Repository owner, repository, branch, and file path are required"
+            );
+        }
+
+        String normalizedPath = filePath
+                .replace('\\', '/')
+                .replaceAll("^/+", "");
+
+        if (normalizedPath.isBlank()
+                || normalizedPath.contains("//")) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Invalid repository file path"
+            );
+        }
+
+        GithubFileContentDTO response;
+
+        try {
+            response = restClient.get()
+                    .uri(uriBuilder -> uriBuilder
+                            .pathSegment(
+                                    "repos",
+                                    owner,
+                                    repository,
+                                    "contents"
+                            )
+                            .pathSegment(normalizedPath.split("/"))
+                            .queryParam("ref", branch)
+                            .build()
+                    )
+                    .headers(headers -> {
+                        headers.set(
+                                HttpHeaders.ACCEPT,
+                                "application/vnd.github+json"
+                        );
+                        headers.set(
+                                "X-GitHub-Api-Version",
+                                "2026-03-10"
+                        );
+
+                        if (accessToken != null
+                                && !accessToken.isBlank()) {
+                            headers.setBearerAuth(accessToken);
+                        }
+                    })
+                    .retrieve()
+                    .body(GithubFileContentDTO.class);
+
+        } catch (org.springframework.web.client.RestClientResponseException e) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_GATEWAY,
+                    "GitHub could not retrieve repository file: "
+                            + normalizedPath,
+                    e
+            );
+        }
+
+        if (response == null
+                || !"file".equalsIgnoreCase(response.getType())) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_GATEWAY,
+                    "GitHub did not return a file for path: "
+                            + normalizedPath
+            );
+        }
+
+        if (!"base64".equalsIgnoreCase(response.getEncoding())
+                || response.getContent() == null
+                || response.getContent().isBlank()) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_GATEWAY,
+                    "GitHub returned missing or unsupported file content for: "
+                            + normalizedPath
+            );
+        }
+
+        try {
+            byte[] decodedBytes = Base64.getMimeDecoder()
+                    .decode(response.getContent());
+
+            return new String(
+                    decodedBytes,
+                    StandardCharsets.UTF_8
+            );
+
+        } catch (IllegalArgumentException e) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_GATEWAY,
+                    "GitHub returned invalid Base64 content for: "
+                            + normalizedPath,
+                    e
+            );
+        }
     }
 }
