@@ -13,11 +13,10 @@ import com.deployX.backend.modules.Deployment;
 import com.deployX.backend.Enum.DeploymentStatus;
 import java.util.UUID;
 import com.deployX.backend.io.DeploymentCreationResponse;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-
+import org.springframework.context.ApplicationEventPublisher;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.core.JacksonException;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -35,7 +34,9 @@ public class DeploymentService {
     private final BuildConfigurationService buildConfigurationService;
     private final DeploymentRepository deploymentRepository;
     private final EnvironmentVariableService environmentVariableService;
-//    private final ObjectMapper objectMapper;
+    private final ObjectMapper objectMapper;
+    private final ApplicationEventPublisher eventPublisher;
+    private final DeploymentLogService deploymentLogService;
 
 
     public deploymentResponse analyzeRepository(
@@ -1017,6 +1018,7 @@ public class DeploymentService {
                 .branch(analysis.getBranch())
                 .projectType(analysis.getProjectType())
                 .componentPath(request.getComponentPath())
+                .buildConfigJson(request.getBuildConfig() == null ? null : writeJson(request.getBuildConfig()))
                 .status(DeploymentStatus.CREATED)
                 .user(user)
                 .build();
@@ -1041,6 +1043,139 @@ public class DeploymentService {
                 .status(savedDeployment.getStatus().name())
                 .createdAt(savedDeployment.getCreatedAt())
                 .build();
+    }
+
+    @Transactional
+    public DeploymentCreationResponse createDraft(String email, deploymentRequest request) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User not found"));
+        deploymentResponse analysis = analyzeRepository(email, request);
+        String repositoryUrl = request.getSource().equalsIgnoreCase("URL")
+                ? request.getRepositoryUrl().trim()
+                : "https://github.com/" + analysis.getOwner() + "/" + analysis.getRepository();
+        Deployment deployment = deploymentRepository.save(Deployment.builder()
+                .deploymentId(UUID.randomUUID())
+                .repositoryOwner(analysis.getOwner())
+                .repositoryName(analysis.getRepository())
+                .repositoryUrl(repositoryUrl)
+                .branch(analysis.getBranch())
+                .projectType(analysis.getProjectType())
+                .componentPath(request.getComponentPath())
+                .buildConfigJson(request.getBuildConfig() == null ? null : writeJson(request.getBuildConfig()))
+                .status(DeploymentStatus.CREATED)
+                .user(user)
+                .build());
+        deploymentLogService.append(deployment, "INFO", "Deployment draft created.");
+        return deploymentResponse(deployment);
+    }
+
+    @Transactional
+    public DeploymentConfigurationResponse saveConfiguration(
+            String email, UUID deploymentId, DeploymentConfigurationRequest request) {
+        Deployment deployment = getOwnedDeployment(email, deploymentId);
+        if (request == null || request.getConfiguration() == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Configuration is required");
+        }
+        try {
+            deployment.setConfigurationJson(objectMapper.writeValueAsString(request.getConfiguration()));
+            deployment.setBuildConfigJson(request.getBuildConfig() == null
+                    ? null : objectMapper.writeValueAsString(request.getBuildConfig()));
+        } catch (Exception exception) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Configuration is invalid", exception);
+        }
+        deploymentRepository.save(deployment);
+        environmentVariableService.replaceVariablePreservingStoredValues(
+                email, deploymentId, request.getEnvironmentVariables());
+        deploymentLogService.append(deployment, "INFO", "Deployment configuration saved.");
+        return getConfiguration(email, deploymentId);
+    }
+
+    @Transactional(readOnly = true)
+    public DeploymentConfigurationResponse getConfiguration(String email, UUID deploymentId) {
+        Deployment deployment = getOwnedDeployment(email, deploymentId);
+        try {
+            tools.jackson.databind.JsonNode configuration = deployment.getConfigurationJson() == null
+                    ? null : objectMapper.readTree(deployment.getConfigurationJson());
+            tools.jackson.databind.JsonNode buildConfig = deployment.getBuildConfigJson() == null
+                    ? null : objectMapper.readTree(deployment.getBuildConfigJson());
+            return DeploymentConfigurationResponse.builder()
+                    .repositoryName(deployment.getRepositoryName())
+                    .projectType(deployment.getProjectType())
+                    .componentPath(deployment.getComponentPath())
+                    .configuration(configuration)
+                    .buildConfig(buildConfig)
+                    .environmentVariables(environmentVariableService.getVariables(email, deploymentId))
+                    .build();
+        } catch (Exception exception) {
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Could not load deployment configuration", exception);
+        }
+    }
+
+    @Transactional
+    public DeploymentStatusResponse startDeployment(String email, UUID deploymentId) {
+        Deployment deployment = getOwnedDeployment(email, deploymentId);
+        if (deployment.getStatus() != DeploymentStatus.CREATED
+                && deployment.getStatus() != DeploymentStatus.FAILED) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Deployment is not in a startable state");
+        }
+        if (deployment.getBuildConfigJson() == null || deployment.getConfigurationJson() == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Save deployment configuration before starting");
+        }
+        deployment.setStatus(DeploymentStatus.CLONING);
+        deployment.setFailureSummary(null);
+        deployment.setFinishedAt(null);
+        deployment.setStartedAt(java.time.LocalDateTime.now());
+        deploymentRepository.save(deployment);
+        deploymentLogService.append(deployment, "INFO", "Deployment worker queued.");
+        eventPublisher.publishEvent(new DeploymentStartedEvent(deploymentId));
+        return toStatusResponse(deployment);
+    }
+
+    @Transactional(readOnly = true)
+    public DeploymentStatusResponse getStatus(String email, UUID deploymentId) {
+        return toStatusResponse(getOwnedDeployment(email, deploymentId));
+    }
+
+    @Transactional(readOnly = true)
+    public List<DeploymentLogResponse> getLogs(String email, UUID deploymentId) {
+        getOwnedDeployment(email, deploymentId);
+        return deploymentLogService.getLogs(deploymentId);
+    }
+
+    private Deployment getOwnedDeployment(String email, UUID deploymentId) {
+        return deploymentRepository.findByDeploymentIdAndUser_Email(deploymentId, email)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Deployment not found"));
+    }
+
+    private DeploymentCreationResponse deploymentResponse(Deployment deployment) {
+        return DeploymentCreationResponse.builder()
+                .deploymentId(deployment.getDeploymentId())
+                .status(deployment.getStatus().name())
+                .createdAt(deployment.getCreatedAt())
+                .build();
+    }
+
+    private DeploymentStatusResponse toStatusResponse(Deployment deployment) {
+        return DeploymentStatusResponse.builder()
+                .deploymentId(deployment.getDeploymentId())
+                .repositoryOwner(deployment.getRepositoryOwner())
+                .repositoryName(deployment.getRepositoryName())
+                .branch(deployment.getBranch())
+                .status(deployment.getStatus())
+                .failureSummary(deployment.getFailureSummary())
+                .applicationUrl(deployment.getApplicationUrl())
+                .createdAt(deployment.getCreatedAt())
+                .startedAt(deployment.getStartedAt())
+                .finishedAt(deployment.getFinishedAt())
+                .build();
+    }
+
+    private String writeJson(Object value) {
+        try {
+            return objectMapper.writeValueAsString(value);
+        } catch (Exception exception) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Configuration is invalid", exception);
+        }
     }
 
     // =========================================================
@@ -1120,18 +1255,15 @@ public class DeploymentService {
             );
 
             try {
-                JsonNode root = new ObjectMapper().readTree(fileContent);
+                JsonNode root = objectMapper.readTree(fileContent);
                 JsonNode scriptsNode = root.get("scripts");
 
                 Map<String, String> scripts = new LinkedHashMap<>();
 
                 if (scriptsNode != null && scriptsNode.isObject()) {
-                    scriptsNode.fields().forEachRemaining(entry -> {
-                        if (entry.getValue().isTextual()) {
-                            scripts.put(
-                                    entry.getKey(),
-                                    entry.getValue().asText()
-                            );
+                    scriptsNode.forEachEntry((key, value) -> {
+                        if (value.isString()) {
+                            scripts.put(key, value.asString());
                         }
                     });
                 }

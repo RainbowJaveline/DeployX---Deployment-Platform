@@ -6,6 +6,8 @@ import org.springframework.stereotype.Repository;
 
 import java.util.Optional;
 import java.util.UUID;
+import java.util.Collection;
+import com.deployX.backend.Enum.DeploymentStatus;
 
 @Repository
 public interface DeploymentRepository extends JpaRepository<Deployment, Long> {
@@ -18,5 +20,7 @@ public interface DeploymentRepository extends JpaRepository<Deployment, Long> {
             UUID deploymentId,
             String email
     );
+
+    java.util.List<Deployment> findAllByStatusIn(Collection<DeploymentStatus> statuses);
 
 }

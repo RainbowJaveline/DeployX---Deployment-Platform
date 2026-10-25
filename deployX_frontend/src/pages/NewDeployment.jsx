@@ -19,6 +19,19 @@ function NewDeployment() {
 
   const [loadingRepositories, setLoadingRepositories] = useState(false);
   const [repositoryError, setRepositoryError] = useState("");
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+
+  function repositoryFullName(repository) {
+    return repository.fullName || repository.full_name || '';
+  }
+
+  function repositoryHtmlUrl(repository) {
+    return repository.htmlUrl || repository.html_url || '';
+  }
+
+  function repositoryDefaultBranch(repository) {
+    return repository.defaultBranch || repository.default_branch || '';
+  }
 
   useEffect(() => {
     const stored = getStoredName();
@@ -71,14 +84,14 @@ function NewDeployment() {
     setSelectedRepository(repository);
 
     // Automatically use the selected repository URL
-    setRepositoryUrl(repository.htmlUrl);
+    setRepositoryUrl(repositoryHtmlUrl(repository));
   }
 
   function handleNewDeployment() {
     // Already on the New Deployment page.
   }
 
-  function handleContinue() {
+  async function handleContinue() {
     if (!repositoryUrl.trim()) {
       alert("Please select a repository or enter a GitHub repository URL.");
       return;
@@ -89,20 +102,31 @@ function NewDeployment() {
       return;
     }
 
+    let repository
     if (selectedRepository) {
-      console.log("Selected repository:", selectedRepository);
-
-      alert(
-        `Repository selected: ${selectedRepository.fullName}\n\n` +
-        "Repository analysis and deployment will be connected with the backend."
-      );
-
-      return;
+      const [owner, name] = repositoryFullName(selectedRepository).split('/')
+      const branch = repositoryDefaultBranch(selectedRepository)
+      if (!owner || !name || !branch) {
+        setRepositoryError('The selected repository is missing its owner, name, or default branch. Refresh the repository list and try again.')
+        return
+      }
+      repository = {
+        source: 'GITHUB',
+        owner,
+        repository: name,
+        branch,
+      }
+    } else {
+      repository = { source: 'URL', repositoryUrl: repositoryUrl.trim() }
     }
 
-    alert(
-      "Repository analysis and deployment will be connected with the backend."
-    );
+    setIsAnalyzing(true)
+    setRepositoryError('')
+    try {
+      navigate('/repository-analysis', { state: { repository } })
+    } finally {
+      setIsAnalyzing(false)
+    }
   }
 
   return (
@@ -278,7 +302,7 @@ function NewDeployment() {
                           </strong>
 
                           <span>
-                            {repository.fullName}
+                            {repositoryFullName(repository)}
                           </span>
 
                           <div className="new-deployment__repository-meta">
@@ -288,7 +312,7 @@ function NewDeployment() {
                             </span>
 
                             <span>
-                              {repository.defaultBranch}
+                              {repositoryDefaultBranch(repository)}
                             </span>
 
                             <span>
@@ -344,8 +368,9 @@ function NewDeployment() {
               type="button"
               className="new-deployment__continue-button"
               onClick={handleContinue}
+              disabled={isAnalyzing}
             >
-              Continue <span>→</span>
+              {isAnalyzing ? 'Starting analysis…' : 'Continue'} <span>→</span>
             </button>
 
           </div>

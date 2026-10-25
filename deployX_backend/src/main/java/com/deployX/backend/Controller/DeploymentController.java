@@ -89,6 +89,58 @@ public class DeploymentController {
         return deploymentService.createDeployment(email , request);
     }
 
+    @PostMapping("/draft")
+    @ResponseStatus(HttpStatus.CREATED)
+    public DeploymentCreationResponse createDraft(
+            @RequestBody deploymentRequest request,
+            HttpServletRequest httpServletRequest) {
+        return deploymentService.createDraft(requireEmail(httpServletRequest), request);
+    }
+
+    @GetMapping("/{deploymentId}/configuration")
+    public DeploymentConfigurationResponse getConfiguration(
+            @PathVariable UUID deploymentId,
+            HttpServletRequest request) {
+        return deploymentService.getConfiguration(requireEmail(request), deploymentId);
+    }
+
+    @PutMapping("/{deploymentId}/configuration")
+    public DeploymentConfigurationResponse saveConfiguration(
+            @PathVariable UUID deploymentId,
+            @RequestBody DeploymentConfigurationRequest configuration,
+            HttpServletRequest request) {
+        return deploymentService.saveConfiguration(requireEmail(request), deploymentId, configuration);
+    }
+
+    @PostMapping("/{deploymentId}/start")
+    public DeploymentStatusResponse startDeployment(
+            @PathVariable UUID deploymentId,
+            HttpServletRequest request) {
+        return deploymentService.startDeployment(requireEmail(request), deploymentId);
+    }
+
+    @GetMapping("/{deploymentId}/status")
+    public DeploymentStatusResponse getStatus(
+            @PathVariable UUID deploymentId,
+            HttpServletRequest request) {
+        return deploymentService.getStatus(requireEmail(request), deploymentId);
+    }
+
+    @GetMapping("/{deploymentId}/logs")
+    public List<DeploymentLogResponse> getLogs(
+            @PathVariable UUID deploymentId,
+            HttpServletRequest request) {
+        return deploymentService.getLogs(requireEmail(request), deploymentId);
+    }
+
+    private String requireEmail(HttpServletRequest request) {
+        String email = (String) request.getAttribute("deployxUserEmail");
+        if (email == null || email.isBlank()) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "DeployX authentication required");
+        }
+        return email;
+    }
+
 
     @Operation(
             summary = "Add or replace deployment environment variables",

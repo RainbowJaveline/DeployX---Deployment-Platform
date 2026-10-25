@@ -4,6 +4,7 @@ import com.deployX.backend.Repository.DeploymentEnvironmentVariableRepository;
 import com.deployX.backend.Repository.DeploymentRepository;
 import com.deployX.backend.io.EnvironmentVariableRequest;
 import com.deployX.backend.io.EnvironmentVariableResponse;
+import com.deployX.backend.io.DeploymentEnvironmentVariableInput;
 import com.deployX.backend.modules.Deployment;
 import com.deployX.backend.modules.DeploymentEnvironmentVariable;
 import jakarta.transaction.Transactional;
@@ -96,6 +97,54 @@ public class EnvironmentVariableService {
         return savedVariables.stream()
                 .map(this::toResponse)
                 .toList();
+    }
+
+    @Transactional
+    public List<EnvironmentVariableResponse> replaceVariablePreservingStoredValues(
+            String email,
+            UUID deploymentId,
+            List<DeploymentEnvironmentVariableInput> variables
+    ) {
+        Deployment deployment = getOwnedDeployment(email, deploymentId);
+        if (variables == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Environment variables are required");
+        }
+
+        var existing = envRepository.findAllByDeployment_DeploymentId(deploymentId);
+        var existingByName = existing.stream().collect(java.util.stream.Collectors.toMap(
+                DeploymentEnvironmentVariable::getName, variable -> variable));
+        Set<String> names = new HashSet<>();
+        java.util.List<DeploymentEnvironmentVariable> retained = new java.util.ArrayList<>();
+
+        for (DeploymentEnvironmentVariableInput input : variables) {
+            if (input == null || input.getName() == null
+                    || !input.getName().matches("[A-Za-z_][A-Za-z0-9_]*")) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid environment variable name");
+            }
+            String name = input.getName();
+            if (!names.add(name)) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Duplicate environment variable name: " + name);
+            }
+
+            DeploymentEnvironmentVariable old = existingByName.get(name);
+            String value = input.getValue();
+            if (value == null || value.isEmpty()) {
+                if (old == null || !input.isStored()) {
+                    throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Enter a value for " + name);
+                }
+                old.setSecret(input.isSecret());
+                retained.add(old);
+            } else {
+                DeploymentEnvironmentVariable variable = old != null ? old
+                        : DeploymentEnvironmentVariable.builder().deployment(deployment).name(name).build();
+                variable.setSecret(input.isSecret());
+                variable.setEncryptedValue(encryptionService.encrypt(value));
+                retained.add(variable);
+            }
+        }
+
+        existing.stream().filter(variable -> !names.contains(variable.getName())).forEach(envRepository::delete);
+        return envRepository.saveAll(retained).stream().map(this::toResponse).toList();
     }
 
     @Transactional

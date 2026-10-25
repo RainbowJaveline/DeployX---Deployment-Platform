@@ -38,6 +38,16 @@ public class Deployment {
 
     private String componentPath;
 
+    @Column(columnDefinition = "TEXT")
+    private String configurationJson;
+
+    @Column(columnDefinition = "TEXT")
+    private String buildConfigJson;
+
+    private String containerId;
+
+    private String applicationUrl;
+
     private String commitHash;
 
     @Enumerated(EnumType.STRING)
@@ -45,6 +55,7 @@ public class Deployment {
     @Builder.Default
     private DeploymentStatus status = DeploymentStatus.CREATED;
 
+    @Column(length = 2000)
     private String failureSummary;
 
     private LocalDateTime startedAt;

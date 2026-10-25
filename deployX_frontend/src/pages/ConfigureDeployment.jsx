@@ -8,16 +8,14 @@ import {
   Minus,
   Plus,
   Rocket,
-  Cpu,
-  Server,
-  Database,
   Trash2,
   AlertTriangle,
 } from 'lucide-react'
 
 import Sidebar from '../components/dashboard/Sidebar'
 import Topbar from '../components/dashboard/Topbar'
-import { getDeploymentConfig, saveDeploymentConfig, createDeployment } from '../utils/deploymentApi'
+import { getDeploymentConfig, saveDeploymentConfig, createDeploymentDraftFromRepository } from '../utils/deploymentApi'
+import { startDeployment } from '../utils/api'
 
 import './ConfigureDeployment.css'
 
@@ -26,12 +24,6 @@ import './ConfigureDeployment.css'
 let _nextId = 1
 function uid() {
   return `ev-${_nextId++}`
-}
-
-const SERVICE_ICONS = {
-  cpu: Cpu,
-  server: Server,
-  database: Database,
 }
 
 const ENV_NAMESPACES = {
@@ -50,19 +42,12 @@ function validate(config) {
   if (keys.some((k) => k === '')) {
     errors.push('Every variable must have a name.')
   }
+  if (config.envVars.some((v) => v.key.trim() && !v.value && !v.stored)) {
+    errors.push('Enter a value for each new environment variable.')
+  }
   const unique = new Set(keys)
   if (unique.size !== keys.length) {
     errors.push('Variable names must be unique.')
-  }
-
-  // Namespace: lowercase letters, numbers, dashes only
-  if (!/^[a-z0-9-]+$/.test(config.advanced.namespace)) {
-    errors.push('Namespace may only contain lowercase letters, numbers, and dashes.')
-  }
-
-  // Ingress host: basic domain pattern
-  if (!/^([a-z0-9-]+\.)+[a-z]{2,}$/.test(config.advanced.ingressHost)) {
-    errors.push('Ingress host must look like a domain (e.g. demoshop.io).')
   }
 
   // CPU limit: e.g. 500m or 0.5
@@ -75,7 +60,32 @@ function validate(config) {
     errors.push('Memory limit must be like "512Mi" or "1Gi".')
   }
 
+  const port = Number(config.advanced.applicationPort)
+  if (!Number.isInteger(port) || port < 1 || port > 65535) {
+    errors.push('Container port must be between 1 and 65535.')
+  }
+  const cpu = config.advanced.cpuLimit.endsWith('m')
+    ? Number.parseFloat(config.advanced.cpuLimit) / 1000
+    : Number.parseFloat(config.advanced.cpuLimit)
+  if (!Number.isFinite(cpu) || cpu < 0.1 || cpu > 4) {
+    errors.push('Local Docker deployments support 0.1 to 4 CPU cores.')
+  }
+  const memory = config.advanced.memoryLimit.match(/^(\d+(?:\.\d+)?)(Ki|Mi|Gi|K|M|G)?$/)
+  let memoryMb = memory ? Number.parseFloat(memory[1]) : 0
+  if (memory?.[2] === 'Gi' || memory?.[2] === 'G') memoryMb *= 1024
+  if (memory?.[2] === 'Ki' || memory?.[2] === 'K') memoryMb /= 1024
+  if (!memory || memoryMb < 128 || memoryMb > 4096) {
+    errors.push('Local Docker deployments support 128 to 4096 MB of memory.')
+  }
+  if (!advancedHealthPathIsValid(config.advanced.healthCheckPath)) {
+    errors.push('Health check path must start with / and be a local path.')
+  }
+
   return errors
+}
+
+function advancedHealthPathIsValid(path) {
+  return typeof path === 'string' && path.startsWith('/') && !path.startsWith('//') && !path.includes('..')
 }
 
 // ─── component ───────────────────────────────────────────────────────────────
@@ -84,7 +94,11 @@ export default function ConfigureDeployment() {
   const location = useLocation()
   const navigate = useNavigate()
 
-  const analysisId = location.state?.analysisId || 'demo'
+  const repositoryRequest = location.state?.repository
+  const analysis = location.state?.analysis
+  const [deploymentId, setDeploymentId] = useState(
+    new URLSearchParams(location.search).get('deploymentId') || location.state?.deploymentId || ''
+  )
 
   // ── remote state ─────────────────────────────────────────────────────────
   const [loading, setLoading] = useState(true)
@@ -100,6 +114,8 @@ export default function ConfigureDeployment() {
     ingressHost: '',
     cpuLimit: '',
     memoryLimit: '',
+    applicationPort: 8080,
+    healthCheckPath: '/',
   })
 
   // Track whether the user has manually edited the namespace
@@ -124,18 +140,52 @@ export default function ConfigureDeployment() {
     setLoading(true)
     setLoadError(null)
     try {
-      const data = await getDeploymentConfig(analysisId)
-      setAppName(data.appName)
-      setEnvironment(data.environment)
-      setServices(data.services)
-      setEnvVars(data.envVars.map((v) => ({ ...v, id: v.id || uid() })))
-      setAdvanced(data.advanced)
+      let id = deploymentId
+      if (!id) {
+        if (!repositoryRequest) throw new Error('Repository details are missing. Start again from Repository Analysis.')
+        const selectedComponent = analysis?.components?.[0]
+        const runtime = selectedComponent?.type || analysis?.projectType || 'NODE'
+        const applicationPort = runtime === 'NODE' || runtime === 'NODEJS' ? 3000 : 8080
+        const draft = await createDeploymentDraftFromRepository({
+          ...repositoryRequest,
+          componentPath: selectedComponent?.path || null,
+          buildConfig: {
+            runtime,
+            buildStrategy: 'AUTO',
+            applicationPort,
+            healthCheckPath: '/',
+            cpuCores: 1,
+            memoryMb: 512,
+          },
+        })
+        id = draft.deploymentId
+        setDeploymentId(id)
+        navigate(`/configure-deployment?deploymentId=${id}`, {
+          replace: true,
+          state: { repository: repositoryRequest, analysis, deploymentId: id },
+        })
+      }
+      const data = await getDeploymentConfig(id)
+      const saved = data.configuration || {}
+      const projectName = data.repositoryName || repositoryRequest?.repository || repositoryRequest?.repositoryUrl?.split('/').filter(Boolean).pop() || 'application'
+      const runtime = data.buildConfig?.runtime || analysis?.components?.[0]?.type || data.projectType || analysis?.projectType || 'NODE'
+      setAppName(saved.appName || projectName)
+      setEnvironment(saved.environment || 'Production')
+      setServices(saved.services || [])
+      setEnvVars((data.environmentVariables || []).map((v) => ({
+        id: uid(), key: v.name, value: '', secret: v.secret, stored: true,
+      })).concat((saved.envVars || []).filter((v) => !(data.environmentVariables || []).some((stored) => stored.name === v.key))))
+      setAdvanced(saved.advanced || {
+        namespace: 'production', ingressHost: '', cpuLimit: '1', memoryLimit: '512Mi',
+        applicationPort: data.buildConfig?.applicationPort || (runtime === 'NODE' || runtime === 'NODEJS' ? 3000 : 8080),
+        healthCheckPath: data.buildConfig?.healthCheckPath || '/',
+      })
     } catch (err) {
       setLoadError(err.message || 'Could not load configuration.')
     } finally {
       setLoading(false)
     }
-  }, [analysisId])
+  }, [analysis, deploymentId, navigate, repositoryRequest])
 
   useEffect(() => {
     loadConfig()
@@ -152,21 +202,11 @@ export default function ConfigureDeployment() {
   }, [environment, namespaceEdited])
 
   // ── service stepper ──────────────────────────────────────────────────────
-  function changeServiceValue(id, delta) {
-    setServices((prev) =>
-      prev.map((s) =>
-        s.id === id
-          ? { ...s, value: Math.min(s.max, Math.max(s.min, s.value + delta)) }
-          : s
-      )
-    )
-  }
-
   // ── env vars ─────────────────────────────────────────────────────────────
   function updateVar(id, field, raw) {
     const value = field === 'key' ? raw.toUpperCase() : raw
     setEnvVars((prev) =>
-      prev.map((v) => (v.id === id ? { ...v, [field]: value } : v))
+      prev.map((v) => (v.id === id ? { ...v, [field]: value, ...(field === 'key' || (field === 'value' && value) ? { stored: false } : {}) } : v))
     )
   }
 
@@ -196,6 +236,33 @@ export default function ConfigureDeployment() {
     return { appName, environment, services, envVars, advanced }
   }
 
+  function buildBackendConfig() {
+    const component = analysis?.components?.[0]
+    const runtime = component?.type || analysis?.projectType || 'NODE'
+    const cpuLimit = advanced.cpuLimit.endsWith('m')
+      ? Number.parseFloat(advanced.cpuLimit) / 1000
+      : Number.parseFloat(advanced.cpuLimit)
+    const memoryMatch = advanced.memoryLimit.match(/^(\d+(?:\.\d+)?)(Ki|Mi|Gi|K|M|G)?$/)
+    let memoryMb = memoryMatch ? Number.parseFloat(memoryMatch[1]) : 512
+    const unit = memoryMatch?.[2] || 'Mi'
+    if (unit === 'Gi' || unit === 'G') memoryMb *= 1024
+    if (unit === 'Ki' || unit === 'K') memoryMb /= 1024
+    return {
+      configuration: { appName, environment, services, advanced },
+      buildConfig: {
+        runtime,
+        buildStrategy: 'AUTO',
+        applicationPort: Number(advanced.applicationPort),
+        healthCheckPath: advanced.healthCheckPath || '/',
+        cpuCores: Math.max(0.1, cpuLimit || 1),
+        memoryMb: Math.max(128, Math.round(memoryMb)),
+      },
+      environmentVariables: envVars.map(({ key, value, secret, stored }) => ({
+        name: key.trim(), value, secret: Boolean(secret), stored: Boolean(stored),
+      })),
+    }
+  }
+
   // ── save ─────────────────────────────────────────────────────────────────
   async function handleSave() {
     setSaveStatus(null)
@@ -204,7 +271,7 @@ export default function ConfigureDeployment() {
     setDeployError(null)
     setValidationErrors([])
 
-    const errors = validate(buildConfig())
+      const errors = validate(buildConfig())
     if (errors.length) {
       setValidationErrors(errors)
       return
@@ -212,7 +279,8 @@ export default function ConfigureDeployment() {
 
     setSaveStatus('saving')
     try {
-      await saveDeploymentConfig(analysisId, buildConfig())
+      if (!deploymentId) throw new Error('Deployment draft has not been created yet.')
+      await saveDeploymentConfig(deploymentId, buildBackendConfig())
       setSaveStatus('saved')
     } catch (err) {
       setSaveStatus('error')
@@ -228,7 +296,7 @@ export default function ConfigureDeployment() {
     setDeployError(null)
     setValidationErrors([])
 
-    const errors = validate(buildConfig())
+      const errors = validate(buildConfig())
     if (errors.length) {
       setValidationErrors(errors)
       return
@@ -236,8 +304,12 @@ export default function ConfigureDeployment() {
 
     setDeployStatus('deploying')
     try {
-      const { deploymentId } = await createDeployment(buildConfig())
-      navigate('/deployment-progress', { state: { deploymentId } })
+      if (!deploymentId) throw new Error('Deployment draft has not been created yet.')
+      await saveDeploymentConfig(deploymentId, buildBackendConfig())
+      const deployment = await startDeployment(deploymentId)
+      navigate(`/deployment-progress?deploymentId=${deploymentId}`, {
+        state: { deploymentId, status: deployment.status, repository: repositoryRequest },
+      })
     } catch (err) {
       setDeployStatus('error')
       setDeployError(err.message || 'Could not start deployment.')
@@ -334,50 +406,9 @@ export default function ConfigureDeployment() {
               </div>
             </div>
 
-            {/* Service cards */}
-            <div className="cd-services">
-              {services.map((svc) => {
-                const Icon = SERVICE_ICONS[svc.icon] || Server
-                const atMin = svc.value <= svc.min
-                const atMax = svc.value >= svc.max
-                const unit = svc.kind === 'storage' ? 'GB' : 'Replicas'
-                return (
-                  <div key={svc.id} className={`cd-service-card cd-service-card--${svc.id}`}>
-                    <div className="cd-service-info">
-                      <div className={`cd-service-icon cd-service-icon--${svc.id}`} aria-hidden="true">
-                        <Icon size={20} />
-                      </div>
-                      <div>
-                        <h2 className="cd-service-name">{svc.name}</h2>
-                        <p className="cd-service-tech">{svc.tech}</p>
-                      </div>
-                    </div>
-
-                    <div className="cd-stepper">
-                      <span className="cd-stepper__label">{unit}</span>
-                      <button
-                        type="button"
-                        className="cd-stepper__btn"
-                        aria-label={`Decrease ${svc.name} ${unit}`}
-                        disabled={atMin}
-                        onClick={() => changeServiceValue(svc.id, -1)}
-                      >
-                        <Minus size={14} />
-                      </button>
-                      <span className="cd-stepper__value">{svc.value}</span>
-                      <button
-                        type="button"
-                        className="cd-stepper__btn"
-                        aria-label={`Increase ${svc.name} ${unit}`}
-                        disabled={atMax}
-                        onClick={() => changeServiceValue(svc.id, +1)}
-                      >
-                        <Plus size={14} />
-                      </button>
-                    </div>
-                  </div>
-                )
-              })}
+            <div className="cd-advanced__note">
+              <AlertTriangle size={14} aria-hidden="true" />
+              Local Docker deploys the selected component: {analysis?.components?.[0]?.path || '.'} ({analysis?.components?.[0]?.type || analysis?.projectType || 'Unknown runtime'}).
             </div>
 
             {/* Environment Variables */}
@@ -426,7 +457,7 @@ export default function ConfigureDeployment() {
                             className="cd-var-val"
                             type={v.secret && !isRevealed ? 'password' : 'text'}
                             value={v.value}
-                            placeholder="value"
+                            placeholder={v.stored ? 'Saved securely; leave blank to keep it' : 'value'}
                             onChange={(e) => updateVar(v.id, 'value', e.target.value)}
                           />
                         </label>
@@ -476,34 +507,18 @@ export default function ConfigureDeployment() {
                 <div className="cd-advanced__body">
                   <p className="cd-advanced__note">
                     <AlertTriangle size={14} aria-hidden="true" />
-                    These settings configure Kubernetes resource limits and deployment behavior.
+                    These settings configure the local container and health check.
                   </p>
 
                   <div className="cd-advanced__grid">
                     <div className="cd-field">
-                      <label className="cd-field__label" htmlFor="cd-namespace">
-                        Kubernetes Namespace
-                      </label>
-                      <input
-                        id="cd-namespace"
-                        className="cd-field__input cd-field__input--mono"
-                        type="text"
-                        value={advanced.namespace}
-                        onChange={(e) => handleAdvancedChange('namespace', e.target.value)}
-                      />
+                      <label className="cd-field__label" htmlFor="cd-port">Container Port</label>
+                      <input id="cd-port" className="cd-field__input cd-field__input--mono" type="number" min="1" max="65535" value={advanced.applicationPort} onChange={(e) => handleAdvancedChange('applicationPort', e.target.value)} />
                     </div>
 
                     <div className="cd-field">
-                      <label className="cd-field__label" htmlFor="cd-ingress">
-                        Ingress Host
-                      </label>
-                      <input
-                        id="cd-ingress"
-                        className="cd-field__input cd-field__input--mono"
-                        type="text"
-                        value={advanced.ingressHost}
-                        onChange={(e) => handleAdvancedChange('ingressHost', e.target.value)}
-                      />
+                      <label className="cd-field__label" htmlFor="cd-health">Health Check Path</label>
+                      <input id="cd-health" className="cd-field__input cd-field__input--mono" type="text" value={advanced.healthCheckPath} onChange={(e) => handleAdvancedChange('healthCheckPath', e.target.value)} />
                     </div>
 
                     <div className="cd-field">
@@ -553,7 +568,7 @@ export default function ConfigureDeployment() {
             {/* Save success message */}
             {saveStatus === 'saved' && (
               <p className="cd-success-msg" role="status">
-                ✓ Configuration saved.
+              ✓ Configuration saved to DeployX.
               </p>
             )}
 

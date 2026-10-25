@@ -5,6 +5,8 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.Size;
+import jakarta.validation.constraints.DecimalMax;
+import jakarta.validation.constraints.DecimalMin;
 import lombok.Data;
 
 @Data
@@ -28,9 +30,9 @@ public class BuildConfigRequest {
     private String healthCheckPath;
 
     // Resource limits
-    @Min(1)
-    @Max(64)
-    private Integer cpuCores;
+    @DecimalMin("0.1")
+    @DecimalMax("4.0")
+    private Double cpuCores;
 
     @Min(128)
     @Max(65536)

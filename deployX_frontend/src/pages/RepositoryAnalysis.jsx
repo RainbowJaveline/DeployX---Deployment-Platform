@@ -10,6 +10,7 @@ import {
 import Sidebar from "../components/dashboard/Sidebar";
 import Topbar from "../components/dashboard/Topbar";
 import { getStoredName, firstNameOf } from "../utils/user";
+import { analyzeRepository } from "../utils/api";
 
 import "./RepositoryAnalysis.css";
 
@@ -35,13 +36,12 @@ export default function RepositoryAnalysis() {
   const navigate = useNavigate();
 
   const [firstName, setFirstName] = useState("there");
-  const [currentStep, setCurrentStep] = useState(0);
-  const [analysisComplete, setAnalysisComplete] =
-    useState(false);
-
-  const repository =
-    location.state?.repository ||
-    "https://github.com/alex/demoshop";
+  const [analysis, setAnalysis] = useState(null);
+  const [analysisError, setAnalysisError] = useState('');
+  const [analyzing, setAnalyzing] = useState(false);
+  const repositoryRequest = location.state?.repository;
+  const repositoryLabel = repositoryRequest?.repositoryUrl ||
+    (repositoryRequest ? `https://github.com/${repositoryRequest.owner}/${repositoryRequest.repository}` : '');
 
   useEffect(() => {
     const stored = getStoredName();
@@ -53,26 +53,24 @@ export default function RepositoryAnalysis() {
   }, []);
 
   useEffect(() => {
-    const timer = setInterval(() => {
-      setCurrentStep((previous) => {
-        if (previous >= analysisSteps.length - 1) {
-          clearInterval(timer);
-          setAnalysisComplete(true);
-          return previous;
-        }
-
-        return previous + 1;
-      });
-    }, 1100);
-
-    return () => clearInterval(timer);
-  }, []);
+    if (!repositoryRequest) {
+      setAnalysisError('Choose a repository from the New Deployment page to begin analysis.')
+      return
+    }
+    let cancelled = false
+    setAnalyzing(true)
+    analyzeRepository(repositoryRequest)
+      .then((result) => { if (!cancelled) setAnalysis(result) })
+      .catch((error) => { if (!cancelled) setAnalysisError(error.message) })
+      .finally(() => { if (!cancelled) setAnalyzing(false) })
+    return () => { cancelled = true }
+  }, [repositoryRequest]);
 
   function handleConfigureDeployment() {
     navigate("/configure-deployment", {
       state: {
-        repository,
-        analysisId: 'demo',
+        repository: repositoryRequest,
+        analysis,
       },
     });
   }
@@ -110,7 +108,7 @@ export default function RepositoryAnalysis() {
               <div className="analysis__repository">
                 <Github size={22} />
 
-                <span>{repository}</span>
+                <span>{repositoryLabel}</span>
 
                 <span className="analysis__online-dot" />
               </div>
@@ -122,19 +120,14 @@ export default function RepositoryAnalysis() {
               <div className="analysis-progress">
                 <div
                   className={`analysis-progress__bar ${
-                    analysisComplete
+                    analysis
                       ? "analysis-progress__bar--complete"
                       : ""
                   }`}
                   style={{
-                    width: analysisComplete
+                    width: analysis
                       ? "100%"
-                      : `${Math.max(
-                          8,
-                          ((currentStep + 1) /
-                            analysisSteps.length) *
-                            100
-                        )}%`,
+                      : analyzing ? "40%" : "0%",
                   }}
                 />
               </div>
@@ -142,13 +135,8 @@ export default function RepositoryAnalysis() {
               <div className="analysis-steps">
 
                 {analysisSteps.map((step, index) => {
-                  const completed =
-                    analysisComplete ||
-                    index < currentStep;
-
-                  const active =
-                    !analysisComplete &&
-                    index === currentStep;
+                  const completed = Boolean(analysis);
+                  const active = analyzing && index === 1;
 
                   return (
                     <div
@@ -188,8 +176,10 @@ export default function RepositoryAnalysis() {
               </div>
             </section>
 
+            {analysisError && <div className="analysis-complete" role="alert"><div><h3>Analysis failed</h3><p>{analysisError}</p></div></div>}
+
             {/* Detected components */}
-            {analysisComplete && (
+            {analysis && (
               <>
                 <h2 className="components-title">
                   DETECTED COMPONENTS
@@ -197,35 +187,14 @@ export default function RepositoryAnalysis() {
 
                 <section className="components-grid">
 
-                  <div className="component-card component-card--react">
-                    <div className="component-icon">
-                      R
+                  {(analysis.components || []).map((component) => (
+                    <div className="component-card component-card--react" key={`${component.path}-${component.name}`}>
+                      <div className="component-icon">{(component.name || '?').charAt(0).toUpperCase()}</div>
+                      <h3>{component.name}</h3>
+                      <p>{component.type || component.buildTool || 'Application'}</p>
+                      <span>{component.path || '.'}</span>
                     </div>
-
-                    <h3>React</h3>
-                    <p>Frontend</p>
-                    <span>:5173</span>
-                  </div>
-
-                  <div className="component-card component-card--spring">
-                    <div className="component-icon">
-                      S
-                    </div>
-
-                    <h3>Spring Boot</h3>
-                    <p>Backend</p>
-                    <span>:8080</span>
-                  </div>
-
-                  <div className="component-card component-card--postgres">
-                    <div className="component-icon">
-                      P
-                    </div>
-
-                    <h3>PostgreSQL</h3>
-                    <p>Database</p>
-                    <span>:5432</span>
-                  </div>
+                  ))}
 
                 </section>
 
@@ -238,7 +207,7 @@ export default function RepositoryAnalysis() {
                     <h3>Analysis complete</h3>
 
                     <p>
-                      Your deployment configuration is ready.
+                      {analysis.projectType || 'Project'} detected · {analysis.language || 'Language unknown'} · branch {analysis.branch}
                     </p>
                   </div>
                 </div>
