@@ -146,8 +146,17 @@ public class GithubService {
                         .retrieve()
                         .body(GithubRepositoryDTO[].class);
 
-        if (repositories == null) {
-            return List.of();
+            return repositories == null
+                    ? List.of()
+                    : Arrays.asList(repositories);
+        } catch (RestClientResponseException ex) {
+            if(ex.getStatusCode().value() == 401){
+                throw new GitHubReauthRequiredException(
+                    "Your GitHub connection has expired. Please reconnect your GitHub account.",
+                            ex
+                );
+            }
+            throw ex;
         }
 
 
