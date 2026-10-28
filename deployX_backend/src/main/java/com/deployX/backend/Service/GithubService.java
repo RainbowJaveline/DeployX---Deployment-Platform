@@ -1,12 +1,13 @@
 package com.deployX.backend.Service;
 
+import com.deployX.backend.exceptions.GitHubReauthRequiredException;
 import com.deployX.backend.io.*;
 import com.deployX.backend.io.GithubRepositoryDTO;
 import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 import org.springframework.http.HttpStatus;
+import org.springframework.web.client.RestClientResponseException;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.nio.charset.StandardCharsets;
@@ -32,7 +33,7 @@ public class GithubService {
             String accessToken
     )
     {
-        GithubRepositoryDTO repositoryDTO = restClient.get()
+        return restClient.get()
                 .uri(uriBuilder ->
                         uriBuilder.path("/repos/{owner}/{repository}")
                                 .build(owner , repository))
@@ -45,7 +46,6 @@ public class GithubService {
                 )
                 .retrieve()
                 .body(GithubRepositoryDTO.class);
-        return repositoryDTO;
     }
 
     public List<GithubContentDto> getRepositoryContents(
@@ -124,6 +124,7 @@ public class GithubService {
 
     public List<GithubRepositoryDTO> getRepositories(String accessToken) {
 
+        try{
         GithubRepositoryDTO[] repositories =
                 restClient.get()
                         .uri(uriBuilder -> uriBuilder
@@ -158,10 +159,6 @@ public class GithubService {
             }
             throw ex;
         }
-
-
-
-        return Arrays.asList(repositories);
     }
 
     public String getRepositoryFileContent(

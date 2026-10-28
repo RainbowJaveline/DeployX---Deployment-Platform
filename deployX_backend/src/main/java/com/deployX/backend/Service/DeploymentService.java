@@ -14,6 +14,7 @@ import com.deployX.backend.Enum.DeploymentStatus;
 import java.util.UUID;
 import com.deployX.backend.io.DeploymentCreationResponse;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 import tools.jackson.core.JacksonException;
@@ -37,6 +38,7 @@ public class DeploymentService {
     private final ObjectMapper objectMapper;
     private final ApplicationEventPublisher eventPublisher;
     private final DeploymentLogService deploymentLogService;
+    private final DeploymentStreamService streamService;
 
 
     public deploymentResponse analyzeRepository(
@@ -1128,12 +1130,30 @@ public class DeploymentService {
         deploymentRepository.save(deployment);
         deploymentLogService.append(deployment, "INFO", "Deployment worker queued.");
         eventPublisher.publishEvent(new DeploymentStartedEvent(deploymentId));
-        return toStatusResponse(deployment);
+        DeploymentStatusResponse statusResponse = toStatusResponse(deployment);
+        streamService.publishStatus(deploymentId, statusResponse);
+        return statusResponse;
+    }
+
+    @Transactional(readOnly = true)
+    public SseEmitter streamLogs(String email, UUID deploymentId) {
+        Deployment deployment = getOwnedDeployment(email, deploymentId);
+        List<DeploymentLogResponse> initialLogs = deploymentLogService.getLogs(deploymentId);
+        return streamService.subscribe(deploymentId, toStatusResponse(deployment), initialLogs);
     }
 
     @Transactional(readOnly = true)
     public DeploymentStatusResponse getStatus(String email, UUID deploymentId) {
         return toStatusResponse(getOwnedDeployment(email, deploymentId));
+    }
+
+    @Transactional(readOnly = true)
+    public List<DeploymentStatusResponse> getUserDeployments(String email) {
+        return deploymentRepository
+                .findAllByUser_EmailAndStatusNotOrderByCreatedAtDesc(email, DeploymentStatus.CREATED)
+                .stream()
+                .map(this::toStatusResponse)
+                .toList();
     }
 
     @Transactional(readOnly = true)
@@ -1160,7 +1180,11 @@ public class DeploymentService {
                 .deploymentId(deployment.getDeploymentId())
                 .repositoryOwner(deployment.getRepositoryOwner())
                 .repositoryName(deployment.getRepositoryName())
+                .repositoryUrl(deployment.getRepositoryUrl())
                 .branch(deployment.getBranch())
+                .projectType(deployment.getProjectType())
+                .environment(readEnvironment(deployment))
+                .commitHash(deployment.getCommitHash())
                 .status(deployment.getStatus())
                 .failureSummary(deployment.getFailureSummary())
                 .applicationUrl(deployment.getApplicationUrl())
@@ -1168,6 +1192,20 @@ public class DeploymentService {
                 .startedAt(deployment.getStartedAt())
                 .finishedAt(deployment.getFinishedAt())
                 .build();
+    }
+
+    private String readEnvironment(Deployment deployment) {
+        if (deployment.getConfigurationJson() == null || deployment.getConfigurationJson().isBlank()) {
+            return "Production";
+        }
+        try {
+            return objectMapper.readTree(deployment.getConfigurationJson())
+                    .path("configuration")
+                    .path("environment")
+                    .asText("Production");
+        } catch (Exception ignored) {
+            return "Production";
+        }
     }
 
     private String writeJson(Object value) {

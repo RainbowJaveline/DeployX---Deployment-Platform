@@ -809,3 +809,328 @@
     font-size: 11px;
   }
 }
+
+/* Refined deployment result layout */
+.deployment-page {
+  max-width: 1240px;
+  margin: 0 auto;
+  padding: 20px 8px 48px;
+}
+
+.deployment-heading {
+  margin-bottom: 26px;
+}
+
+.deployment-heading__eyebrow {
+  margin-bottom: 12px;
+  color: #858ba0;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: .09em;
+  text-transform: uppercase;
+}
+
+.deployment-heading__eyebrow span {
+  padding: 0 7px;
+  color: #4f5667;
+}
+
+.deployment-heading h1 {
+  margin-bottom: 7px;
+  font-size: clamp(24px, 3vw, 32px);
+  letter-spacing: -.035em;
+}
+
+.deployment-heading p {
+  color: #8b91a1;
+  font-size: 14px;
+}
+
+.deployment-progress-card {
+  min-height: 242px;
+  gap: clamp(30px, 6vw, 76px);
+  padding: 36px clamp(24px, 5vw, 58px);
+  border-radius: 18px;
+  background:
+    radial-gradient(ellipse at 12% 50%, rgba(20, 210, 150, .08), transparent 29%),
+    linear-gradient(130deg, #10131a, #0d0f14 72%);
+  box-shadow: 0 18px 50px rgba(0, 0, 0, .18);
+}
+
+.deployment-progress-card--complete {
+  border-color: rgba(20, 210, 150, .36);
+}
+
+.deployment-progress-card--failed {
+  border-color: rgba(248, 91, 105, .38);
+  background: radial-gradient(ellipse at 12% 50%, rgba(248, 91, 105, .08), transparent 29%), #101116;
+}
+
+.deployment-circle {
+  width: 158px;
+  height: 158px;
+}
+
+.deployment-circle::before {
+  width: 140px;
+  height: 140px;
+}
+
+.deployment-circle-inner strong {
+  color: #36ddb0;
+  font-size: 29px;
+  font-weight: 700;
+  letter-spacing: -.04em;
+}
+
+.deployment-circle-inner span {
+  margin-top: 7px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .11em;
+}
+
+.deployment-progress-info h2 {
+  margin: 8px 0 7px;
+  color: #f0f2f7;
+  font-size: clamp(20px, 2.5vw, 27px);
+  font-weight: 700;
+  letter-spacing: -.025em;
+}
+
+.deployment-status-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #7d8798;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .12em;
+}
+
+.deployment-status-label > span,
+.logs-status > span {
+  width: 7px;
+  height: 7px;
+  display: inline-block;
+  border-radius: 50%;
+  background: #9298a6;
+}
+
+.deployment-status-label .is-complete,
+.logs-status--done > span {
+  background: #24d69f;
+  box-shadow: 0 0 12px rgba(36, 214, 159, .75);
+}
+
+.deployment-status-label .is-failed {
+  background: #fb6374;
+  box-shadow: 0 0 12px rgba(251, 99, 116, .65);
+}
+
+.deployment-status-label .is-active {
+  background: #8276ff;
+  box-shadow: 0 0 12px rgba(130, 118, 255, .75);
+  animation: activeDotPulse 1s ease-in-out infinite;
+}
+
+.deployment-progress-copy {
+  margin: 0;
+  color: #9ba2b1;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.deployment-meta-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 26px;
+  margin-top: 20px;
+}
+
+.deployment-meta {
+  min-width: 180px;
+  display: grid;
+  gap: 5px;
+}
+
+.deployment-meta > span {
+  color: #6f7788;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: .1em;
+}
+
+.deployment-meta code,
+.deployment-meta a {
+  max-width: min(100%, 430px);
+  overflow: hidden;
+  color: #c0c6d2;
+  font-family: 'Consolas', 'SFMono-Regular', monospace;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.deployment-meta a:hover {
+  color: #a69cff;
+}
+
+.deployment-failure-summary {
+  margin: 15px 0 0;
+  color: #ff8993;
+  line-height: 1.5;
+}
+
+.deployment-live-card {
+  min-height: 94px;
+  margin: 20px 0 32px;
+  padding: 17px 20px;
+  border-radius: 15px;
+  background: linear-gradient(105deg, rgba(7, 38, 31, .95), rgba(9, 21, 20, .9));
+}
+
+.deployment-live-icon {
+  width: 48px;
+  height: 48px;
+}
+
+.deployment-live-info h2 {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 16px;
+}
+
+.deployment-live-info p {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.deployment-live-actions .open-app-btn {
+  color: #f4f7fa;
+  border-color: #34434a;
+  background: rgba(14, 20, 26, .78);
+}
+
+.deployment-logs-heading {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 32px 2px 13px;
+}
+
+.deployment-logs-heading > div > span {
+  color: #747d8e;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .12em;
+}
+
+.deployment-logs-heading h2 {
+  margin: 5px 0 0;
+  color: #e8eaf0;
+  font-size: 18px;
+  letter-spacing: -.02em;
+}
+
+.deployment-logs-heading .logs-status {
+  position: static;
+  padding: 7px 10px;
+  border: 1px solid #292d37;
+  border-radius: 99px;
+  background: #111319;
+  font-size: 11px;
+}
+
+.logs-panel {
+  min-height: 330px;
+  border-color: #262a34;
+  border-radius: 14px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, .16);
+}
+
+.logs-header {
+  background: #111319;
+}
+
+.terminal-controls {
+  gap: 6px;
+}
+
+.terminal-dot {
+  width: 9px;
+  height: 9px;
+}
+
+.logs-file {
+  color: #a6adbb;
+}
+
+@media (max-width: 800px) {
+  .deployment-page {
+    padding: 12px 0 32px;
+  }
+
+  .deployment-progress-card {
+    align-items: center;
+    gap: 24px;
+  }
+
+  .deployment-progress-info {
+    width: 100%;
+  }
+
+  .deployment-live-card {
+    flex-wrap: wrap;
+  }
+
+  .deployment-live-actions {
+    width: auto;
+    margin-left: 66px;
+  }
+}
+
+@media (max-width: 560px) {
+  .deployment-progress-card {
+    padding: 25px 20px;
+  }
+
+  .deployment-circle {
+    width: 124px;
+    height: 124px;
+  }
+
+  .deployment-circle::before {
+    width: 108px;
+    height: 108px;
+  }
+
+  .deployment-meta-row {
+    display: grid;
+  }
+
+  .deployment-live-card {
+    align-items: flex-start;
+  }
+
+  .deployment-live-icon {
+    width: 42px;
+    height: 42px;
+  }
+
+  .deployment-live-info {
+    width: calc(100% - 60px);
+  }
+
+  .deployment-live-actions {
+    width: 100%;
+    margin: 0;
+  }
+
+  .deployment-logs-heading {
+    align-items: flex-start;
+  }
+}

@@ -45,7 +45,7 @@ public class JwtFilter extends OncePerRequestFilter {
             jwt = authorizationHeader.substring(7);
         }
 
-        //2. If not found  in header , check cookies
+        //2. If not found in header, check cookies
         if (jwt == null) {
             Cookie[] cookies = request.getCookies();
             if (cookies != null) {
@@ -58,7 +58,15 @@ public class JwtFilter extends OncePerRequestFilter {
             }
         }
 
-        //3. Validate the token and set the security context
+        //3. If not found in cookies, check token query parameter (useful for EventSource / SSE)
+        if (jwt == null) {
+            String tokenParam = request.getParameter("token");
+            if (tokenParam != null && !tokenParam.isBlank()) {
+                jwt = tokenParam;
+            }
+        }
+
+        //4. Validate the token and set the security context
         if (jwt != null) {
             try {
                 email = jwtUtil.extractEmail(jwt);

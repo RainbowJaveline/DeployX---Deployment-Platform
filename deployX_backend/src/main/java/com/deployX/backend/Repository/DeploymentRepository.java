@@ -23,4 +23,9 @@ public interface DeploymentRepository extends JpaRepository<Deployment, Long> {
 
     java.util.List<Deployment> findAllByStatusIn(Collection<DeploymentStatus> statuses);
 
+    java.util.List<Deployment> findAllByUser_EmailAndStatusNotOrderByCreatedAtDesc(
+            String email,
+            DeploymentStatus status
+    );
+
 }

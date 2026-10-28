@@ -14,13 +14,26 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class DeploymentLogService {
     private final DeploymentLogRepository logRepository;
+    private final DeploymentStreamService streamService;
 
-    public void append(Deployment deployment, String level, String message) {
-        logRepository.save(DeploymentLog.builder()
+    public DeploymentLogResponse append(Deployment deployment, String level, String message) {
+        DeploymentLog log = logRepository.save(DeploymentLog.builder()
                 .deployment(deployment)
                 .level(level)
                 .message(message)
                 .build());
+
+        DeploymentLogResponse response = DeploymentLogResponse.builder()
+                .timestamp(log.getCreatedAt())
+                .level(log.getLevel())
+                .message(log.getMessage())
+                .build();
+
+        if (deployment != null && deployment.getDeploymentId() != null) {
+            streamService.publishLog(deployment.getDeploymentId(), response);
+        }
+
+        return response;
     }
 
     public List<DeploymentLogResponse> getLogs(UUID deploymentId) {

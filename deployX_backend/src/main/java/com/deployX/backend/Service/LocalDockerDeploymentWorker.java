@@ -37,6 +37,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.regex.Matcher;
+import com.deployX.backend.io.DeploymentStatusResponse;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
@@ -47,6 +48,7 @@ public class LocalDockerDeploymentWorker {
     private final DeploymentEnvironmentVariableRepository environmentVariables;
     private final SecretEncryptionService encryptionService;
     private final DeploymentLogService logs;
+    private final DeploymentStreamService streamService;
     private final ObjectMapper objectMapper;
 
     @Value("${deployx.deployments.workspace:${java.io.tmpdir}/deployx-workspaces}")
@@ -119,16 +121,16 @@ public class LocalDockerDeploymentWorker {
 
             updateApplicationUrl(id, containerId, applicationUrl);
             waitForApplication(id, applicationUrl, config.path("healthCheckPath").asText("/"));
-            updateStatus(id, DeploymentStatus.RUNNING, null, LocalDateTime.now());
             append(id, "SUCCESS", "Application is responding at " + applicationUrl);
+            updateStatus(id, DeploymentStatus.RUNNING, null, LocalDateTime.now());
         } catch (Exception exception) {
             String message = safeFailureMessage(exception);
             if (containerId != null && !containerId.isBlank()) {
                 try { run(List.of("docker", "rm", "--force", containerId), null, Duration.ofMinutes(1), ignored -> { }); }
                 catch (Exception ignored) { }
             }
-            updateStatus(id, DeploymentStatus.FAILED, message, LocalDateTime.now());
             append(id, "ERROR", message);
+            updateStatus(id, DeploymentStatus.FAILED, message, LocalDateTime.now());
         } finally {
             deleteWorkspace(workspace);
         }
@@ -282,6 +284,7 @@ public class LocalDockerDeploymentWorker {
         deployment.setFailureSummary(failure);
         if (finishedAt != null) deployment.setFinishedAt(finishedAt);
         deployments.save(deployment);
+        streamService.publishStatus(id, DeploymentStatusResponse.from(deployment));
     }
 
     private void updateApplicationUrl(UUID id, String containerId, String applicationUrl) {
@@ -289,6 +292,7 @@ public class LocalDockerDeploymentWorker {
         deployment.setContainerId(containerId);
         deployment.setApplicationUrl(applicationUrl);
         deployments.save(deployment);
+        streamService.publishStatus(id, DeploymentStatusResponse.from(deployment));
     }
 
     private void append(UUID id, String level, String message) {

@@ -7,6 +7,8 @@ import RepositoryAnalysis from "./pages/RepositoryAnalysis";
 import ConfigureDeployment from "./pages/ConfigureDeployment";
 import DeploymentProgress from './pages/DeploymentProgress'
 import ProjectDashboard from "./pages/ProjectDashboard";
+import Projects from './pages/Projects'
+import DeploymentHistory from './pages/DeploymentHistory'
 
 export default function App() {
   return (
@@ -19,6 +21,8 @@ export default function App() {
       <Route path="/configure-deployment" element={<ConfigureDeployment />} />
       <Route path="/deployment-progress" element={<DeploymentProgress />} />
       <Route path="/project-dashboard" element={<ProjectDashboard />} />
+      <Route path="/projects" element={<Projects />} />
+      <Route path="/deployments/:deploymentId" element={<DeploymentHistory />} />
     </Routes>
     
   )

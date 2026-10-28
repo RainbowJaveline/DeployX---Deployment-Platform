@@ -1,18 +1,19 @@
 import { LayoutGrid, Layers, Rocket, Activity, Settings, HelpCircle, LogOut } from 'lucide-react'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import Logo from '../Logo'
 import { clearStoredName } from '../../utils/user'
 import './Sidebar.css'
 
 const NAV_ITEMS = [
-  { label: 'Dashboard', icon: LayoutGrid, active: true },
-  { label: 'Projects', icon: Layers },
+  { label: 'Dashboard', icon: LayoutGrid, path: '/dashboard' },
+  { label: 'Projects', icon: Layers, path: '/projects' },
   { label: 'Deployments', icon: Rocket },
   { label: 'Monitoring', icon: Activity },
 ]
 
 export default function Sidebar({ userName = 'there' }) {
   const navigate = useNavigate()
+  const location = useLocation()
 
   function handleLogout() {
     clearStoredName()
@@ -27,11 +28,12 @@ export default function Sidebar({ userName = 'there' }) {
       </div>
 
       <nav className="sidebar__nav" aria-label="Primary">
-        {NAV_ITEMS.map(({ label, icon: Icon, active }) => (
+        {NAV_ITEMS.map(({ label, icon: Icon, path }) => (
           <button
             key={label}
             type="button"
-            className={`sidebar__link${active ? ' sidebar__link--active' : ''}`}
+            className={`sidebar__link${path && location.pathname === path ? ' sidebar__link--active' : ''}`}
+            onClick={path ? () => navigate(path) : undefined}
           >
             <Icon size={18} strokeWidth={2} />
             {label}

@@ -8,9 +8,11 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.util.List;
 import java.util.UUID;
@@ -126,11 +128,30 @@ public class DeploymentController {
         return deploymentService.getStatus(requireEmail(request), deploymentId);
     }
 
+    @GetMapping("/mine")
+    public List<DeploymentStatusResponse> getMyDeployments(HttpServletRequest request) {
+        return deploymentService.getUserDeployments(requireEmail(request));
+    }
+
     @GetMapping("/{deploymentId}/logs")
     public List<DeploymentLogResponse> getLogs(
             @PathVariable UUID deploymentId,
             HttpServletRequest request) {
         return deploymentService.getLogs(requireEmail(request), deploymentId);
+    }
+
+    @Operation(
+            summary = "Stream deployment logs and status events via SSE",
+            description = """
+                Establishes a Server-Sent Events (SSE) connection to stream
+                real-time deployment logs and status changes for the given deployment.
+                """
+    )
+    @GetMapping(value = "/{deploymentId}/logs/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    public SseEmitter streamLogs(
+            @PathVariable UUID deploymentId,
+            HttpServletRequest request) {
+        return deploymentService.streamLogs(requireEmail(request), deploymentId);
     }
 
     private String requireEmail(HttpServletRequest request) {

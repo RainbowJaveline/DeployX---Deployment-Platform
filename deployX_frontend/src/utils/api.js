@@ -107,9 +107,61 @@ export async function getDeploymentStatus(deploymentId) {
   return data
 }
 
+export async function getMyDeployments() {
+  const response = await apiFetch('/deployment/mine')
+  const data = await response.json().catch(() => ([]))
+  if (!response.ok) throw new Error(data.message || data.detail || 'Could not load your projects.')
+  return Array.isArray(data) ? data : []
+}
+
 export async function getDeploymentLogs(deploymentId) {
   const response = await apiFetch(`/deployment/${deploymentId}/logs`)
   const data = await response.json().catch(() => ([]))
   if (!response.ok) throw new Error(data.message || data.detail || 'Could not load deployment logs.')
   return data
+}
+
+export function subscribeDeploymentLogs(deploymentId, { onInit, onLog, onStatus, onComplete, onError }) {
+  const url = `${API_BASE_URL}/deployment/${deploymentId}/logs/stream`
+  const eventSource = new EventSource(url, { withCredentials: true })
+
+  eventSource.addEventListener('init', (e) => {
+    try {
+      const data = JSON.parse(e.data)
+      onInit?.(data)
+    } catch (err) {
+      console.error('Failed to parse SSE init payload', err)
+    }
+  })
+
+  eventSource.addEventListener('log', (e) => {
+    try {
+      const log = JSON.parse(e.data)
+      onLog?.(log)
+    } catch (err) {
+      console.error('Failed to parse SSE log payload', err)
+    }
+  })
+
+  eventSource.addEventListener('status', (e) => {
+    try {
+      const status = JSON.parse(e.data)
+      onStatus?.(status)
+    } catch (err) {
+      console.error('Failed to parse SSE status payload', err)
+    }
+  })
+
+  eventSource.addEventListener('complete', (e) => {
+    onComplete?.(e.data)
+    eventSource.close()
+  })
+
+  eventSource.onerror = (err) => {
+    onError?.(err)
+  }
+
+  return () => {
+    eventSource.close()
+  }
 }
