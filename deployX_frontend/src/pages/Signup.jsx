@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { apiFetch } from '../utils/api'
+import { API_BASE_URL, apiFetch } from '../utils/api'
 import { Link, useNavigate } from 'react-router-dom'
 import HeroPanel from '../components/HeroPanel'
 import StarField from '../components/StarField'
@@ -69,8 +69,7 @@ export default function Signup() {
   }
 
   function handleGithubSignUp() {
-    // Replace with your real GitHub OAuth redirect.
-    console.log('Continue with GitHub')
+    window.location.href = `${API_BASE_URL}/oauth2/authorization/github`
   }
 
   return (

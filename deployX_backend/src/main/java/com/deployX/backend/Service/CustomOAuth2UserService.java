@@ -2,9 +2,7 @@ package com.deployX.backend.Service;
 
 import com.deployX.backend.Repository.UserRepository;
 import com.deployX.backend.modules.User;
-import jakarta.servlet.ServletRequestAttributeEvent;
 import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;
@@ -61,12 +59,9 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
             name = login;
         }
 
-        String email = oauth2User.getAttribute("email");
-
-        // GitHub may not return email in /user
-        if (email == null || email.isBlank()) {
-            email = getGitHubEmail(userRequest);
-        }
+        // Only use a verified address. This is the proof that allows OAuth
+        // login to safely link to an existing password-based DeployX account.
+        String email = getGitHubEmail(userRequest);
 
         if (email == null || email.isBlank()) {
             throw new OAuth2AuthenticationException(
@@ -74,24 +69,34 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
             );
         }
 
-        String finalName = name;
-        String finalEmail = email;
-
-        userRepository
+        String githubName = name;
+        User user = userRepository
                 .findByProviderAndProviderId(provider, providerId)
-                .orElseGet(() -> {
+                .orElseGet(() -> userRepository.findByEmailIgnoreCase(email)
+                        .orElseGet(() -> User.builder()
+                                .name(githubName)
+                                .email(email)
+                                .password(null)
+                                .build()));
 
-                    User newUser = User.builder()
-                            .name(finalName)
-                            .email(finalEmail)
-                            .provider(provider)
-                            .providerId(providerId)
-                            .password(null)
-                            .isAccountVerified(true)
-                            .build();
+        // Do not silently replace an existing external identity on an account.
+        if ((user.getProviderId() != null && !user.getProviderId().equals(providerId))
+                || (user.getGithubProviderId() != null
+                && !user.getGithubProviderId().equals(providerId))) {
+            throw new OAuth2AuthenticationException(
+                    "This DeployX account is already linked to a different GitHub account"
+            );
+        }
 
-                    return userRepository.save(newUser);
-                });
+        user.setName(user.getName() == null || user.getName().isBlank() ? githubName : user.getName());
+        user.setEmail(user.getEmail() == null ? email : user.getEmail());
+        user.setProvider(provider);
+        user.setProviderId(providerId);
+        user.setGithubProviderId(providerId);
+        user.setGithubUsername(login);
+        user.setGithubAccessToken(userRequest.getAccessToken().getTokenValue());
+        user.setAccountVerified(true);
+        userRepository.save(user);
 
         return oauth2User;
     }
